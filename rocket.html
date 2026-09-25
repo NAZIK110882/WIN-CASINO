@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Space Crash - Ракетка</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            /* Задній фон розтягується так, щоб було видно всю картинку повністю */
+            background: url('spacecrash.jpg') no-repeat center center fixed; 
+            background-size: 100% 100%; 
+            background-color: #0f0f1a;
+            color: #fff; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            width: 100vw;
+            height: 100vh; 
+            margin: 0; 
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .game-container { 
+            /* Зробили ігрове поле трохи меншим за розміром */
+            background: rgba(26, 26, 46, 0.85); 
+            backdrop-filter: blur(10px);
+            padding: 20px; 
+            border-radius: 20px; 
+            box-shadow: 0 0 40px rgba(0, 188, 212, 0.4); 
+            text-align: center; 
+            border: 2px solid #00bcd4; 
+            width: 75vw; 
+            height: 80vh;
+            max-width: 950px;
+            max-height: 650px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        h1 { margin: 0 0 10px 0; color: #00bcd4; text-transform: uppercase; text-shadow: 0 0 10px #00bcd4; font-size: 24px; }
+        .balance-box { font-size: 16px; margin-bottom: 10px; background: rgba(37, 37, 53, 0.8); padding: 6px 12px; border-radius: 10px; border: 1px solid #4CAF50; width: fit-content; margin-left: auto; margin-right: auto; }
+        #balanceDisplay { color: #4CAF50; font-weight: bold; }
+        
+        .screen { 
+            background: #09090c; 
+            flex-grow: 1; 
+            border-radius: 15px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            border: inset 2px #222;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .multiplier-overlay {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            font-size: 40px;
+            font-weight: bold;
+            color: #ffeb3b;
+            text-shadow: 0 0 15px #ffeb3b;
+            z-index: 10;
+        }
+        
+        .bet-container { margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        .bet-container select { 
+            padding: 8px; 
+            width: 120px; 
+            font-size: 16px; 
+            border-radius: 5px; 
+            border: 2px solid #00bcd4; 
+            text-align: center; 
+            font-weight: bold; 
+            cursor: pointer;
+            outline: none;
+            background: rgba(37, 37, 53, 0.9);
+            color: #fff;
+        }
+        
+        button { 
+            background: linear-gradient(45deg, #00bcd4, #2196f3); 
+            color: white; 
+            border: none; 
+            padding: 14px 0; 
+            width: 100%; 
+            font-size: 20px; 
+            font-weight: bold; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            box-shadow: 0 4px 15px rgba(0, 188, 212, 0.4);
+            transition: 0.2s;
+        }
+        button:disabled { background: #444; color: #888; cursor: not-allowed; box-shadow: none; }
+        #cashoutBtn { background: linear-gradient(45deg, #4CAF50, #8BC34A); box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4); display: none; }
+        
+        .message { margin-top: 5px; font-size: 16px; font-weight: bold; height: 20px; }
+        .back-link { display: inline-block; margin-top: 5px; color: #00bcd4; text-decoration: none; font-weight: bold; font-size: 15px; }
+
+        /* Модальні вікна */
+        .video-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+        
+        #looseModal {
+            justify-content: flex-start;
+            align-items: center;
+            padding-top: 0;
+        }
+        #looseModal .video-modal-content {
+            margin-top: 0;
+            border-top: none;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+            border-top: 3px solid #ff3333;
+            padding-top: 10px;
+        }
+        #looseVideo {
+            width: 100%;
+            max-height: 65vh;
+            object-fit: contain;
+            margin: 5px 0;
+            background: #000;
+        }
+
+        .video-modal-content {
+            background: #16162a; padding: 25px; border-radius: 20px; text-align: center;
+            border: 2px solid #00bcd4; max-width: 450px; width: 90%;
+            box-shadow: 0 0 30px rgba(0, 188, 212, 0.5);
+        }
+        .video-modal-content video {
+            width: 100%; border-radius: 10px; margin: 15px 0; max-height: 250px; object-fit: cover;
+        }
+        .video-modal-content button {
+            background: #00bcd4; margin-top: 10px; padding: 12px; font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Відео при виграші -->
+    <div id="winModal" class="video-modal">
+        <div class="video-modal-content">
+            <h2 style="color: #4CAF50; margin-top: 0;">🎉 ПЕРЕМОГА! 🎉</h2>
+            <video id="winVideo" src="rocketwin.mp4" controls></video>
+            <div id="winModalText" style="font-size: 18px; font-weight: bold; margin-bottom: 10px;"></div>
+            <button onclick="closeModals()">ПРОДОВЖИТИ</button>
+        </div>
+    </div>
+
+    <!-- Відео при програші -->
+    <div id="looseModal" class="video-modal">
+        <div class="video-modal-content" style="border-color: #ff3333; box-shadow: 0 0 30px rgba(255, 51, 51, 0.5);">
+            <h2 style="color: #ff3333; margin: 5px 0; font-size: 22px;">💥 АПАРАТ ЗГОРІВ! 💥</h2>
+            <video id="looseVideo" src="rocketloose.mp4" controls></video>
+            <div style="font-size: 16px; font-weight: bold; margin: 5px 0; color: #ff3333;">Ставка згоріла</div>
+            <button onclick="closeModals()" style="background: #ff3333; padding: 10px; font-size: 16px;">ЗРОЗУМІЛО</button>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <h1>🚀 Space Crash</h1>
+        <div class="balance-box">Баланс: $<span id="balanceDisplay">...</span></div>
+        
+        <div class="screen" id="screenBox">
+            <canvas id="gameCanvas"></canvas>
+            <div class="multiplier-overlay" id="multiplierDisplay">1.00x</div>
+        </div>
+        
+        <div class="bet-container" id="betControlSection">
+            <label style="color: #aaa; font-weight: bold;">Ставка: $</label>
+            <select id="betInput">
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="300">300</option>
+                <option value="500">500</option>
+                <option value="1000">1000</option>
+            </select>
+        </div>
+        
+        <button id="startBtn">ПОЧАТИ ПОЛІТ</button>
+        <button id="cashoutBtn">ЗАБРАТИ ВИГРАШ</button>
+        
+        <div class="message" id="messageDisplay"></div>
+        <div><a href="index.html" class="back-link">← Повернутися в лобі</a></div>
+    </div>
+
+    <script>
+        const startBtn = document.getElementById('startBtn');
+        const cashoutBtn = document.getElementById('cashoutBtn');
+        const betInput = document.getElementById('betInput');
+        const betControlSection = document.getElementById('betControlSection');
+        const balanceDisp = document.getElementById('balanceDisplay');
+        const multDisp = document.getElementById('multiplierDisplay');
+        const msgDisp = document.getElementById('messageDisplay');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const winModal = document.getElementById('winModal');
+        const looseModal = document.getElementById('looseModal');
+        const winVideo = document.getElementById('winVideo');
+        const looseVideo = document.getElementById('looseVideo');
+        const winModalText = document.getElementById('winModalText');
+
+        const playerImg = new Image();
+        playerImg.src = 'zela.png';
+
+        let currentMultiplier = 1.00;
+        let gameInterval = null;
+        let isPlaying = false;
+        let crashPoint = 2.00;
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function drawGraph(progress, isCrashed) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#161622';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 40) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+            }
+            for (let j = 0; j < canvas.height; j += 40) {
+                ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
+            }
+
+            const startX = 50;
+            const startY = canvas.height - 40;
+            
+            const clampedProgress = Math.min(Math.max(progress, 0), 1);
+            const currentX = startX + (canvas.width - 100) * clampedProgress;
+            const currentY = startY - (canvas.height - 80) * clampedProgress;
+
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(currentX, currentY);
+            ctx.strokeStyle = isCrashed ? '#ff3333' : '#00bcd4';
+            ctx.lineWidth = 5;
+            ctx.stroke();
+
+            ctx.lineTo(currentX, startY);
+            ctx.lineTo(startX, startY);
+            ctx.fillStyle = isCrashed ? 'rgba(255, 51, 51, 0.1)' : 'rgba(0, 188, 212, 0.15)';
+            ctx.fill();
+
+            if (!isCrashed) {
+                const imgSize = 110;
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(currentX, currentY, imgSize / 2, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(playerImg, currentX - imgSize / 2, currentY - imgSize / 2, imgSize, imgSize);
+                ctx.restore();
+
+                ctx.beginPath();
+                ctx.arc(currentX, currentY, imgSize / 2, 0, Math.PI * 2);
+                ctx.strokeStyle = '#00bcd4';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            } else {
+                ctx.font = '60px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('💥', currentX, currentY);
+            }
+        }
+
+        fetch('api/user.php')
+            .then(res => res.json())
+            .then(data => { if(data.success) balanceDisp.innerText = parseFloat(data.balance).toFixed(2); });
+
+        startBtn.addEventListener('click', async () => {
+            const bet = betInput.value;
+            startBtn.disabled = true;
+            msgDisp.innerText = '';
+
+            try {
+                const res = await fetch('api/rocket_start.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bet: bet })
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    msgDisp.innerText = data.error;
+                    msgDisp.style.color = '#ff3333';
+                    startBtn.disabled = false;
+                    return;
+                }
+
+                balanceDisp.innerText = data.new_balance.toFixed(2);
+                betControlSection.style.display = 'none';
+                startBtn.style.display = 'none';
+                cashoutBtn.style.display = 'block';
+                
+                currentMultiplier = 1.00;
+                isPlaying = true;
+                crashPoint = parseFloat(data.crash_point) || 2.00;
+
+                let startTime = Date.now();
+                const maxScreenMultiplier = 3.50;
+
+                gameInterval = setInterval(() => {
+                    let elapsedSeconds = (Date.now() - startTime) / 1000;
+                    
+                    currentMultiplier = 1.00 + elapsedSeconds * 0.75;
+                    multDisp.innerText = currentMultiplier.toFixed(2) + 'x';
+
+                    let progress = (currentMultiplier - 1.00) / (maxScreenMultiplier - 1.00);
+                    drawGraph(progress, false);
+
+                    if (currentMultiplier >= crashPoint) {
+                        currentMultiplier = crashPoint;
+                        multDisp.innerText = currentMultiplier.toFixed(2) + 'x';
+                        endGame();
+                    }
+                }, 40);
+
+            } catch (err) {
+                msgDisp.innerText = 'Помилка сервера';
+                msgDisp.style.color = '#ff3333';
+                startBtn.disabled = false;
+            }
+        });
+
+        cashoutBtn.addEventListener('click', async () => {
+            if (!isPlaying) return;
+            clearInterval(gameInterval);
+            isPlaying = false;
+
+            try {
+                const res = await fetch('api/rocket_win.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ multiplier: currentMultiplier, bet: betInput.value })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    balanceDisp.innerText = data.new_balance.toFixed(2);
+                    winModalText.innerText = `Ви виграли: $${data.win.toFixed(2)}!`;
+                    winModal.style.display = 'flex';
+                    winVideo.currentTime = 0;
+                    winVideo.play();
+                } else {
+                    msgDisp.innerText = data.error || 'Помилка транзакції';
+                }
+            } catch (err) {
+                msgDisp.innerText = 'Помилка зв’язку з сервером';
+            }
+
+            resetUI();
+        });
+
+        function endGame() {
+            if (!isPlaying) return;
+            isPlaying = false;
+            clearInterval(gameInterval);
+
+            const maxScreenMultiplier = 3.50;
+            let finalProgress = (currentMultiplier - 1.00) / (maxScreenMultiplier - 1.00);
+            drawGraph(finalProgress, true);
+            multDisp.innerText = '💥 CRASH';
+
+            looseModal.style.display = 'flex';
+            looseVideo.currentTime = 0;
+            looseVideo.play();
+
+            resetUI();
+        }
+
+        function resetUI() {
+            cashoutBtn.style.display = 'none';
+            startBtn.style.display = 'block';
+            startBtn.disabled = false;
+            betControlSection.style.display = 'flex';
+        }
+
+        function closeModals() {
+            winModal.style.display = 'none';
+            looseModal.style.display = 'none';
+            winVideo.pause();
+            looseVideo.pause();
+        }
+
+        resizeCanvas();
+        drawGraph(0, false);
+    </script>
+</body>
+</html>

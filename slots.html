@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Casino Slots</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background: #222; 
+            color: #fff; 
+            text-align: center; 
+            padding-top: 50px; 
+        }
+        .slot-machine { 
+            background: #333; 
+            padding: 30px; 
+            border-radius: 15px; 
+            display: inline-block; 
+            box-shadow: 0 0 25px #000; 
+            border: 2px solid #444;
+        }
+        .slots { 
+            font-size: 60px; 
+            margin: 20px 0; 
+            letter-spacing: 20px; 
+            background: #111;
+            padding: 15px;
+            border-radius: 10px;
+            border: inset 2px #444;
+        }
+        .balance { font-size: 24px; color: #4CAF50; margin-bottom: 20px; font-weight: bold; }
+        button { 
+            padding: 15px 40px; 
+            font-size: 20px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            background: linear-gradient(45deg, #f44336, #e91e63); 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: 0.2s;
+        }
+        button:hover { background: linear-gradient(45deg, #d32f2f, #c2185b); }
+        button:disabled { background: #555; cursor: not-allowed; box-shadow: none; }
+        .message { margin-top: 20px; font-size: 22px; font-weight: bold; height: 35px; }
+        .back-link { display: block; margin-top: 25px; color: #00bcd4; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <!-- Аудіо елементи для звуків виграшу -->
+    <audio id="cloverSound" src="win_clover.mp3" preload="auto"></audio>
+    <audio id="sevenSound" src="win_seven.mp3" preload="auto"></audio>
+
+    <div class="slot-machine">
+        <div class="balance">Баланс: $<span id="balanceDisplay">...</span></div>
+        <div class="slots" id="slotsDisplay">🎰 🎰 🎰</div>
+        <button id="spinBtn">КРУТИТИ (Ставка: $50)</button>
+        <div class="message" id="messageDisplay"></div>
+        <a href="index.html" class="back-link">← Повернутися в лобі</a>
+    </div>
+
+    <script>
+        const spinBtn = document.getElementById('spinBtn');
+        const slotsDisp = document.getElementById('slotsDisplay');
+        const balanceDisp = document.getElementById('balanceDisplay');
+        const msgDisp = document.getElementById('messageDisplay');
+        
+        const cloverSound = document.getElementById('cloverSound');
+        const sevenSound = document.getElementById('sevenSound');
+
+        // Завантажуємо баланс при відкритті
+        fetch('api/user.php')
+            .then(res => res.json())
+            .then(data => { if(data.success) balanceDisp.innerText = parseFloat(data.balance).toFixed(2); });
+
+        spinBtn.addEventListener('click', async () => {
+            spinBtn.disabled = true;
+            slotsDisp.innerText = '🔄 🔄 🔄';
+            msgDisp.innerText = '';
+
+            try {
+                const response = await fetch('api/spin.php'); 
+                const data = await response.json();
+
+                if (data.error) {
+                    msgDisp.innerText = 'Помилка: ' + data.error;
+                    msgDisp.style.color = '#ff3333';
+                } else {
+                    slotsDisp.innerText = data.result.join(' ');
+                    balanceDisp.innerText = parseFloat(data.new_balance).toFixed(2);
+
+                    // Перевіряємо комбінації для звуків та повідомлень
+                    const [s1, s2, s3] = data.result;
+
+                    if (s1 === '7️⃣' && s2 === '7️⃣' && s3 === '7️⃣') {
+                        msgDisp.innerText = `🔥 ДЖЕКПOT! ТРИ СІМКИ! Виграш: $${data.win}! 🔥`;
+                        msgDisp.style.color = '#ffeb3b';
+                        sevenSound.currentTime = 0;
+                        sevenSound.play();
+                    } else if (s1 === '🍀' && s2 === '🍀' && s3 === '🍀') {
+                        msgDisp.innerText = `🍀 ТРИ КЛЕВЕРИ! Щасливий виграш: $${data.win}! 🍀`;
+                        msgDisp.style.color = '#4CAF50';
+                        cloverSound.currentTime = 0;
+                        cloverSound.play();
+                    } else if (data.win > 0) {
+                        msgDisp.innerText = `✨ Виграш: $${data.win}! ✨`;
+                        msgDisp.style.color = '#00bcd4';
+                    } else {
+                        msgDisp.innerText = 'Спробуй ще!';
+                        msgDisp.style.color = '#aaa';
+                    }
+                }
+            } catch (err) {
+                msgDisp.innerText = 'Помилка з\'єднання з сервером';
+                msgDisp.style.color = '#ff3333';
+            }
+
+            spinBtn.disabled = false;
+        });
+    </script>
+</body>
+</html>
