@@ -1,8 +1,17 @@
 <?php
 header('Content-Type: application/json');
 
-$input = json_decode(file_get_contents('php://input'), true);
-$betAmount = isset($input['bet']) ? (float)$input['bet'] : 0;
+// Перевіряємо ставку: спочатку шукаємо в GET-параметрах, потім у POST/JSON
+$betAmount = 0;
+
+if (isset($_GET['bet'])) {
+    $betAmount = (float)$_GET['bet'];
+} else {
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (isset($input['bet'])) {
+        $betAmount = (float)$input['bet'];
+    }
+}
 
 if ($betAmount <= 0) {
     echo json_encode(['error' => 'Ставка має бути більше нуля']);
@@ -19,38 +28,45 @@ try {
 
 $userId = 1; 
 
-$stmt = $pdo->prepare("SELECT balance FROM users WHERE id = ?");
-$stmt->execute([$userId]);
-$userRow = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$userRow || $userRow['balance'] < $betAmount) {
-    echo json_encode(['error' => 'Недостатньо коштів']);
-    exit;
-}
-
-$symbols = ['🍒', '🍋', '🔔', '💎', '7️⃣', '🍉', '🍇', '🍀'];
-$slot1 = $symbols[array_rand($symbols)];
-$slot2 = $symbols[array_rand($symbols)];
-$slot3 = $symbols[array_rand($symbols)];
-
-$winAmount = 0;
-if ($slot1 === $slot2 && $slot2 === $slot3) {
-    if ($slot1 === '7️⃣') $winAmount = $betAmount * 50; 
-    elseif ($slot1 === '💎') $winAmount = $betAmount * 25;
-    else $winAmount = $betAmount * 10;
-} elseif ($slot1 === $slot2 || $slot2 === $slot3 || $slot1 === $slot3) {
-    $winAmount = $betAmount * 2; 
-}
-
-$newBalance = $userRow['balance'] - $betAmount + $winAmount;
-
+// Використовуємо транзакцію з блокуванням рядка (FOR UPDATE), щоб уникнути гонки даних при швидких кліках
 try {
     $pdo->beginTransaction();
+
+    $stmt = $pdo->prepare("SELECT balance FROM users WHERE id = ? FOR UPDATE");
+    $stmt->execute([$userId]);
+    $userRow = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$userRow || $userRow['balance'] < $betAmount) {
+        $pdo->rollBack();
+        echo json_encode(['error' => 'Недостатньо коштів']);
+        exit;
+    }
+
+    $symbols = ['🍒', '🍋', '🔔', '💎', '7️⃣', '🍉', '🍇', '🍀'];
+    $slot1 = $symbols[array_rand($symbols)];
+    $slot2 = $symbols[array_rand($symbols)];
+    $slot3 = $symbols[array_rand($symbols)];
+
+    $winAmount = 0;
+    if ($slot1 === $slot2 && $slot2 === $slot3) {
+        if ($slot1 === '7️⃣') $winAmount = $betAmount * 50; 
+        elseif ($slot1 === '💎') $winAmount = $betAmount * 25;
+        else $winAmount = $betAmount * 10;
+    } elseif ($slot1 === $slot2 || $slot2 === $slot3 || $slot1 === $slot3) {
+        $winAmount = $betAmount * 2; 
+    }
+
+    $newBalance = $userRow['balance'] - $betAmount + $winAmount;
+
     $updateStmt = $pdo->prepare("UPDATE users SET balance = ? WHERE id = ?");
     $updateStmt->execute([$newBalance, $userId]);
+    
     $pdo->commit();
+
 } catch (Exception $e) {
-    $pdo->rollBack();
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     echo json_encode(['error' => 'Помилка транзакції']);
     exit;
 }

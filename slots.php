@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Casino Slots</title>
+    <style>
+ body { 
+    font-family: Arial, sans-serif; 
+    /* Затемнення + розтягування картинки на весь екран без чорних смуг */
+    background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('bgslot.jpg') no-repeat center center fixed;
+    background-size: 100% 100%; /* Розтягує і по ширині, і по висоті на весь екран */
+    color: #fff; 
+    text-align: center; 
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+        .slot-machine { 
+            background: rgba(30, 30, 30, 0.95); 
+            padding: 40px; 
+            border-radius: 20px; 
+            display: inline-block; 
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.9); 
+            border: 3px solid #d4af37; 
+        }
+        .slots { 
+            font-size: 60px; 
+            margin: 20px 0; 
+            letter-spacing: 20px; 
+            background: #111;
+            padding: 15px;
+            border-radius: 10px;
+            border: inset 3px #333;
+        }
+        .balance { font-size: 24px; color: #4CAF50; margin-bottom: 15px; font-weight: bold; }
+        
+        .bet-container {
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        .bet-container select {
+            padding: 8px 15px;
+            font-size: 18px;
+            font-weight: bold;
+            background: #222;
+            color: #fff;
+            border: 2px solid #d4af37;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        button { 
+            padding: 15px 40px; 
+            font-size: 20px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            background: linear-gradient(45deg, #f44336, #e91e63); 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: 0.2s;
+        }
+        button:hover { background: linear-gradient(45deg, #d32f2f, #c2185b); }
+        button:disabled { background: #555; cursor: not-allowed; box-shadow: none; }
+        .message { margin-top: 20px; font-size: 22px; font-weight: bold; height: 35px; }
+        .back-link { display: block; margin-top: 25px; color: #00bcd4; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <!-- Аудіо елементи для звуків виграшу -->
+    <audio id="cloverSound" src="win_clover.mp3" preload="auto"></audio>
+    <audio id="sevenSound" src="win_seven.mp3" preload="auto"></audio>
+
+    <div class="slot-machine">
+        <div class="balance">Баланс: $<span id="balanceDisplay">...</span></div>
+        
+        <!-- Вибір ставки -->
+        <div class="bet-container">
+            <label for="betSelect">Ставка:</label>
+            <select id="betSelect">
+                <option value="5">$5</option>
+                <option value="10">$10</option>
+                <option value="20">$20</option>
+                <option value="50" selected>$50</option>
+                <option value="100">$100</option>
+                <option value="200">$200</option>
+                <option value="500">$500</option>
+                <option value="1000">$1000</option>
+            </select>
+        </div>
+
+        <div class="slots" id="slotsDisplay">🎰 🎰 🎰</div>
+        <button id="spinBtn">КРУТИТИ</button>
+        <div class="message" id="messageDisplay"></div>
+        <a href="index.html" class="back-link">← Повернутися в лобі</a>
+    </div>
+
+    <script>
+        const spinBtn = document.getElementById('spinBtn');
+        const slotsDisp = document.getElementById('slotsDisplay');
+        const balanceDisp = document.getElementById('balanceDisplay');
+        const msgDisp = document.getElementById('messageDisplay');
+        const betSelect = document.getElementById('betSelect');
+        
+        const cloverSound = document.getElementById('cloverSound');
+        const sevenSound = document.getElementById('sevenSound');
+
+        // Завантажуємо баланс при відкритті
+        fetch('api/user.php')
+            .then(res => res.json())
+            .then(data => { if(data.success) balanceDisp.innerText = parseFloat(data.balance).toFixed(2); });
+
+        spinBtn.addEventListener('click', async () => {
+            const currentBet = betSelect.value;
+            spinBtn.disabled = true;
+            betSelect.disabled = true;
+            slotsDisp.innerText = '🔄 🔄 🔄';
+            msgDisp.innerText = '';
+
+            try {
+                // Відправляємо обрану ставку на сервер у spin.php
+                const response = await fetch(`api/spin.php?bet=${currentBet}`); 
+                const data = await response.json();
+
+                if (data.error) {
+                    msgDisp.innerText = 'Помилка: ' + data.error;
+                    msgDisp.style.color = '#ff3333';
+                } else {
+                    slotsDisp.innerText = data.result.join(' ');
+                    balanceDisp.innerText = parseFloat(data.new_balance).toFixed(2);
+
+                    const [s1, s2, s3] = data.result;
+
+                    if (s1 === '7️⃣' && s2 === '7️⃣' && s3 === '7️⃣') {
+                        msgDisp.innerText = `🔥 ДЖЕКПOT! ТРИ СІМКИ! Виграш: $${data.win}! 🔥`;
+                        msgDisp.style.color = '#ffeb3b';
+                        sevenSound.currentTime = 0;
+                        sevenSound.play();
+                    } else if (s1 === '🍀' && s2 === '🍀' && s3 === '🍀') {
+                        msgDisp.innerText = `🍀 ТРИ КЛЕВЕРИ! Щасливий виграш: $${data.win}! 🍀`;
+                        msgDisp.style.color = '#4CAF50';
+                        cloverSound.currentTime = 0;
+                        cloverSound.play();
+                    } else if (data.win > 0) {
+                        msgDisp.innerText = `✨ Виграш: $${data.win}! ✨`;
+                        msgDisp.style.color = '#00bcd4';
+                    } else {
+                        msgDisp.innerText = 'Спробуй ще!';
+                        msgDisp.style.color = '#aaa';
+                    }
+                }
+            } catch (err) {
+                msgDisp.innerText = 'Помилка з\'єднання з сервером';
+                msgDisp.style.color = '#ff3333';
+            }
+
+            spinBtn.disabled = false;
+            betSelect.disabled = false;
+        });
+    </script>
+</body>
+</html>
