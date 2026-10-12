@@ -1,0 +1,12 @@
+{
+  "name": "win-casino-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "devDependencies": {
+    "cypress": "^12.0.0"
+  },
+  "scripts": {
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run"
+  }
+}
