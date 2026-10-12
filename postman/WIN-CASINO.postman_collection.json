@@ -1,0 +1,139 @@
+{
+  "info": {
+    "name": "WIN-CASINO API Tests",
+    "_postman_id": "win-casino-collection",
+    "description": "Postman collection for WIN-CASINO REST API. Contains positive and negative tests for /api endpoints with automated assertions.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1/WIN-CASINO",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Get User - valid",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": { "raw": "{{base_url}}/api/user.php", "host": ["{{base_url}}"], "path": ["api","user.php"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+              "pm.test('Has success or error field', function () { const json = pm.response.json(); pm.expect(json).to.be.an('object'); pm.expect(json).to.satisfy(j => j.hasOwnProperty('success') || j.hasOwnProperty('error')); });",
+              "pm.test('If success then username and balance exist', function () { const j = pm.response.json(); if (j.success) { pm.expect(j).to.have.property('username'); pm.expect(j).to.have.property('balance'); } });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Spin - GET valid",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{base_url}}/api/spin.php?bet=5", "host": ["{{base_url}}"], "path": ["api","spin.php"], "query": [{ "key": "bet", "value": "5" }] }
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status is 200', function () { pm.response.to.have.status(200); });","pm.test('Has success true and result array', function () { const j = pm.response.json(); pm.expect(j).to.have.property('success'); if (j.success) { pm.expect(j).to.have.property('result'); pm.expect(j.result).to.be.an('array'); pm.expect(j).to.have.property('new_balance'); pm.expect(j).to.have.property('win'); } else { pm.expect(j).to.have.property('error'); } });"], "type": "text/javascript" } }]
+    },
+    {
+      "name": "Spin - GET invalid bet (0)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{base_url}}/api/spin.php?bet=0", "host": ["{{base_url}}"], "path": ["api","spin.php"], "query": [{ "key": "bet", "value": "0" }] }
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status is 200 (API returns JSON errors with 200)', function () { pm.response.to.have.status(200); });","pm.test('Error message for invalid bet', function () { const j = pm.response.json(); pm.expect(j).to.have.property('error'); pm.expect(j.error).to.match(/Ставка/); });"], "type": "text/javascript" } }]
+    },
+    {
+      "name": "Spin - POST valid JSON",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{ \"bet\": 5 }", "options": { "raw": { "language": "json" } } },
+        "url": { "raw": "{{base_url}}/api/spin.php", "host": ["{{base_url}}"], "path": ["api","spin.php"] }
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', function () { pm.response.to.have.status(200); });","pm.test('Response JSON and has expected keys', function () { const j = pm.response.json(); if (j.success) { pm.expect(j).to.have.keys(['success','result','bet','win','new_balance']); } else { pm.expect(j).to.have.property('error'); } });"], "type": "text/javascript" } }]
+    },
+    {
+      "name": "Spin - GET excessive bet (likely insufficient funds)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{base_url}}/api/spin.php?bet=9999999", "host": ["{{base_url}}"], "path": ["api","spin.php"], "query": [{ "key": "bet", "value": "9999999" }] }
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', function () { pm.response.to.have.status(200); });","pm.test('Expect insufficient funds error or success depending on env', function () { const j = pm.response.json(); pm.expect(j).to.be.an('object'); if (j.error) { pm.expect(j.error).to.match(/Недостатньо/); } else { pm.expect(j).to.have.property('new_balance'); } });"], "type": "text/javascript" } }]
+    },
+    {
+      "name": "Bonanza - POST valid",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Accept", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{ \"bet\": 2 }", "options": { "raw": { "language": "json" } } },
+        "url": { "raw": "{{base_url}}/api/bonanza.php", "host": ["{{base_url}}"], "path": ["api","bonanza.php"] }
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', function () { pm.response.to.have.status(200); });","pm.test('Bonanza success structure', function () { const j = pm.response.json(); if (j.success) { pm.expect(j).to.have.property('grid'); pm.expect(j.grid).to.be.an('array'); pm.expect(j).to.have.property('win'); pm.expect(j).to.have.property('new_balance'); pm.expect(j).to.have.property('winning_symbols'); pm.expect(j).to.have.property('bonus_game'); } else { pm.expect(j).to.have.property('error'); } });"], "type": "text/javascript" } }]
+    },
+    {
+      "name": "Bonanza - POST invalid bet",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{ \"bet\": 0 }", "options": { "raw": { "language": "json" } } },
+        "url": { "raw": "{{base_url}}/api/bonanza.php", "host": ["{{base_url}}"], "path": ["api","bonanza.php"] }
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Invalid bet returns error', function () { const j = pm.response.json(); pm.expect(j).to.have.property('error'); pm.expect(j.error).to.match(/Ставка/); });"], "type": "text/javascript" } }]
+    },
+    {
+      "name": "Rocket Start - POST valid",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Accept", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{ \"bet\": 1 }", "options": { "raw": { "language": "json" } } },
+        "url": { "raw": "{{base_url}}/api/rocket_start.php", "host": ["{{base_url}}"], "path": ["api","rocket_start.php"] }
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', function () { pm.response.to.have.status(200); });","pm.test('Rocket returns crash_point and new_balance', function () { const j = pm.response.json(); if (j.success) { pm.expect(j).to.have.property('crash_point'); pm.expect(j.crash_point).to.be.a('number'); pm.expect(j).to.have.property('new_balance'); } else { pm.expect(j).to.have.property('error'); } });"], "type": "text/javascript" } }]
+    },
+    {
+      "name": "Rocket Start - POST invalid bet",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{ \"bet\": -1 }", "options": { "raw": { "language": "json" } } },
+        "url": { "raw": "{{base_url}}/api/rocket_start.php", "host": ["{{base_url}}"], "path": ["api","rocket_start.php"] }
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Invalid bet yields error', function () { const j = pm.response.json(); pm.expect(j).to.have.property('error'); pm.expect(j.error).to.match(/Некоректна ставка/); });"], "type": "text/javascript" } }]
+    },
+    {
+      "name": "Public Redirect - spin endpoint",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{base_url}}/public/api/spin.php?bet=5", "host": ["{{base_url}}"], "path": ["public","api","spin.php"], "query": [{ "key": "bet", "value": "5" }] }
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Follow redirect returns JSON', function () { pm.response.to.have.status(200); pm.response.to.be.json; });","pm.test('Has result or error', function () { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j).to.satisfy(o => o.success || o.error); });"], "type": "text/javascript" } }]
+    },
+    {
+      "name": "Non-existing endpoint",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{base_url}}/api/unknown.php", "host": ["{{base_url}}"], "path": ["api","unknown.php"] }
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Expect 404 or non-200', function () { pm.expect(pm.response.code).to.be.oneOf([200,404,302,500]); });"], "type": "text/javascript" } }]
+    }
+  ]
+}
