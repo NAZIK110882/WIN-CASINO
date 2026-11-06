@@ -9,6 +9,19 @@ use App\Support\Env;
 Env::load(dirname(__DIR__) . '/.env');
 $pdo = Database::pdo();
 
+// Bootstrap a blank MySQL database too (for remote platforms without our init SQL mount).
+$pdo->exec(
+    "CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(50) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        balance DECIMAL(10,2) NOT NULL DEFAULT 1000.00,
+        role ENUM('player','admin') NOT NULL DEFAULT 'player',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT chk_balance_non_negative CHECK (balance >= 0)
+    ) ENGINE=InnoDB"
+);
+
 // Add tables/constraints/indexes without requiring users to drop their DB volume.
 $pdo->exec(
     "CREATE TABLE IF NOT EXISTS game_rounds (

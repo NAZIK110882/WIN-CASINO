@@ -138,6 +138,8 @@ OpenAPI 3.1 специфікація розташована в [docs/openapi.yam
 
 Workflow `.github/workflows/ci-cd.yml` запускає lint, PHPUnit, API smoke та Cypress. Публікація образів і deployment є окремими опціональними jobs та вмикаються GitHub Actions variables; інструкція налаштування секретів і змінних наведена в [docs/PRACTICUM_GUIDE.md](docs/PRACTICUM_GUIDE.md). Успішний локальний build не означає, що застосунок вже опублікований або розгорнутий.
 
+Інструкція для демо-розгортання на Railway: [docs/DEPLOY_RAILWAY.md](docs/DEPLOY_RAILWAY.md). На Railway можна використати backend, frontend та MySQL окремими сервісами; для компактного демо Redis можна вимкнути через файловий кеш.
+
 ## Командна робота
 
 Для кожної задачі створюйте окрему feature/fix/docs/test гілку, відкривайте Pull Request і просіть іншого учасника про review. Issues, GitHub Project/Kanban, призначення задач та історію review ведіть у GitHub — ці дані не зберігаються у локальних файлах проєкту.
