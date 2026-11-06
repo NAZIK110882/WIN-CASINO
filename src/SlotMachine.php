@@ -42,7 +42,7 @@ class SlotMachine
         try {
             $this->pdo->beginTransaction();
 
-            $lockClause = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+            $lockClause = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) !== 'sqlite' ? ' FOR UPDATE' : '';
             $select = $this->pdo->prepare('SELECT balance FROM users WHERE id = ?' . $lockClause);
             $select->execute([$userId]);
             $userRow = $select->fetch(\PDO::FETCH_ASSOC);
@@ -111,10 +111,6 @@ class SlotMachine
             return (bool) $statement->fetchColumn();
         }
 
-        if ($driver !== 'mysql') {
-            return false;
-        }
-
-        return true;
+        return $driver !== 'sqlite';
     }
 }

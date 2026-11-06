@@ -11,8 +11,8 @@ RUN composer dump-autoload --no-dev --classmap-authoritative
 # ---------- 2) базовий PHP+Apache ----------
 FROM php:8.3-apache AS base
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libonig-dev \
- && docker-php-ext-install mbstring pdo_mysql opcache \
+ && apt-get install -y --no-install-recommends libonig-dev libpq-dev \
+ && docker-php-ext-install mbstring pdo_mysql pdo_pgsql opcache \
  && pecl install redis \
  && docker-php-ext-enable redis \
  && a2enmod rewrite headers \
@@ -37,6 +37,9 @@ COPY --from=vendor /app/vendor ./vendor
 COPY api ./api
 COPY src ./src
 COPY scripts ./scripts
+COPY index.html login.html slots.html bonanza.html rocket.html casino-api.js config.js ./
+COPY docker/render-config.js ./config.js
+COPY *.jpg *.png *.mp3 *.mp4 ./
 RUN mkdir -p /var/cache/casino && chown -R www-data:www-data /var/cache/casino
 ENV CACHE_DIR=/var/cache/casino
 EXPOSE 80

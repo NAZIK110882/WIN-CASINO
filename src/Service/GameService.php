@@ -89,7 +89,7 @@ final class GameService
             // An uncollected prior round is considered crashed before a new round starts.
             $expire = $this->pdo->prepare(
                 "SELECT id, bet FROM rocket_rounds WHERE user_id = ? AND status = 'active'" .
-                ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '')
+                ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite' ? ' FOR UPDATE' : '')
             );
             $expire->execute([$userId]);
             foreach ($expire->fetchAll(PDO::FETCH_ASSOC) as $previousRound) {
@@ -103,12 +103,13 @@ final class GameService
             $newBalance = round($balance - $bet, 2);
             $this->saveBalance($userId, $newBalance);
             $crashPoint = random_int(130, 350) / 100;
+            $pgsql = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql';
             $insert = $this->pdo->prepare(
                 "INSERT INTO rocket_rounds (user_id, bet, crash_point, started_at, status)
-                 VALUES (?, ?, ?, ?, 'active')"
+                 VALUES (?, ?, ?, ?, 'active')" . ($pgsql ? ' RETURNING id' : '')
             );
             $insert->execute([$userId, $bet, $crashPoint, microtime(true)]);
-            $roundId = (int) $this->pdo->lastInsertId();
+            $roundId = (int) ($pgsql ? $insert->fetchColumn() : $this->pdo->lastInsertId());
             $this->pdo->commit();
 
             return ['success' => true, 'round_id' => $roundId, 'new_balance' => $newBalance];
@@ -125,7 +126,7 @@ final class GameService
         try {
             // Keep the same lock order as startRocket (user first, then round) to avoid deadlocks.
             $balance = $this->lockedBalance($userId);
-            $lock = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+            $lock = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite' ? ' FOR UPDATE' : '';
             $statement = $this->pdo->prepare(
                 "SELECT id, bet, crash_point, started_at FROM rocket_rounds
                  WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1" . $lock
@@ -169,7 +170,7 @@ final class GameService
         $this->pdo->beginTransaction();
         try {
             $balance = $this->lockedBalance($userId);
-            $lock = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+            $lock = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite' ? ' FOR UPDATE' : '';
             $statement = $this->pdo->prepare(
                 "SELECT id, bet, crash_point, started_at FROM rocket_rounds
                  WHERE id = ? AND user_id = ? AND status = 'active'" . $lock
@@ -223,7 +224,7 @@ final class GameService
 
     private function lockedBalance(int $userId): float
     {
-        $lock = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $lock = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite' ? ' FOR UPDATE' : '';
         $statement = $this->pdo->prepare('SELECT balance FROM users WHERE id = ?' . $lock);
         $statement->execute([$userId]);
         $balance = $statement->fetchColumn();

@@ -17,12 +17,19 @@ $users = [
     ['admin1', Env::required('SEED_ADMIN_PASSWORD'), 'admin'],
 ];
 
-$st = $pdo->prepare(
-    'INSERT INTO users (username, password_hash, role) VALUES (:u, :h, :r)
-     ON DUPLICATE KEY UPDATE password_hash = :h2, role = :r2'
-);
+$driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+$sql = $driver === 'pgsql'
+    ? 'INSERT INTO users (username, password_hash, role) VALUES (:u, :h, :r)
+       ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = EXCLUDED.role'
+    : 'INSERT INTO users (username, password_hash, role) VALUES (:u, :h, :r)
+       ON DUPLICATE KEY UPDATE password_hash = :h2, role = :r2';
+$st = $pdo->prepare($sql);
 foreach ($users as [$name, $plain, $role]) {
     $hash = password_hash($plain, PASSWORD_DEFAULT);
-    $st->execute(['u' => $name, 'h' => $hash, 'r' => $role, 'h2' => $hash, 'r2' => $role]);
+    $params = ['u' => $name, 'h' => $hash, 'r' => $role];
+    if ($driver === 'mysql') {
+        $params += ['h2' => $hash, 'r2' => $role];
+    }
+    $st->execute($params);
     echo "seeded $name ($role)\n";
 }

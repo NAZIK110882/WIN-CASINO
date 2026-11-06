@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: win-casino
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: sh -c 'php scripts/migrate.php && php scripts/seed.php && exec apache2-foreground'
+    healthCheckPath: /api/v1/health.php
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PORT
+        value: "80"
+      - key: CACHE_DRIVER
+        value: file
+      - key: DATABASE_URL
+        fromDatabase:
+          name: win-casino-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SEED_PLAYER_PASSWORD
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      - key: RATE_LIMIT_MAX
+        value: "60"
+      - key: CORS_ALLOWED_ORIGINS
+        value: ""
+
+databases:
+  - name: win-casino-db
+    databaseName: casino_db
+    user: casino
+    plan: free
+    region: frankfurt

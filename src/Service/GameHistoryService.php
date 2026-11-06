@@ -42,11 +42,14 @@ final class GameHistoryService
             Env::int('CACHE_TTL_LEADERBOARD', 30),
             function (): array {
                 $this->cache->increment('metrics:db_leaderboard_queries', 86400);
+                $recentDay = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'pgsql'
+                    ? "CURRENT_TIMESTAMP - INTERVAL '1 day'"
+                    : 'NOW() - INTERVAL 1 DAY';
                 $st = $this->pdo->query(
                     'SELECT u.username, SUM(r.win - r.bet) AS profit
                        FROM game_rounds r
                        JOIN users u ON u.id = r.user_id
-                      WHERE r.created_at >= NOW() - INTERVAL 1 DAY
+                      WHERE r.created_at >= ' . $recentDay . '
                       GROUP BY r.user_id, u.username
                       ORDER BY profit DESC
                       LIMIT 10'

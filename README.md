@@ -5,7 +5,7 @@
 ## Можливості
 
 - Ігрові сторінки та логіка ставок із серверним збереженням балансу.
-- PHP 8.2+, PDO та MySQL 8.4; Redis-кеш із файловим fallback.
+- PHP 8.2+, PDO, MySQL 8.4 локально та PostgreSQL для Render; Redis-кеш із файловим fallback.
 - Версійоване API `/api/v1` і `/api/v2`, JWT-автентифікація, рольова авторизація, валідація, CORS і rate limiting.
 - Механізми retry, timeout і circuit breaker.
 - PHPUnit unit та integration tests, Cypress UI E2E, API smoke checks і k6 сценарії.
@@ -27,7 +27,11 @@ scripts/                database migration, seed та API smoke script
 .github/workflows/      CI/CD workflow
 ```
 
-`index.html`, `slots.html`, `bonanza.html` та `rocket.html` — статичний frontend. Він викликає PHP API окремого Apache контейнера. Старі неверсійовані API-маршрути вилучені; використовуйте `/api/v1/*`.
+`index.html`, `slots.html`, `bonanza.html` та `rocket.html` — статичний frontend. У локальному Compose він працює окремо від API; Render Blueprint збирає фронтенд і API в один Docker web service. Старі неверсійовані API-маршрути вилучені; використовуйте `/api/v1/*`.
+
+## Безкоштовний деплой на Render
+
+У корені є `render.yaml`: він створює Docker web service і PostgreSQL, обидва на Free-плані. Render PostgreSQL видаляється через 30 днів, тому цей варіант підходить для показу практикуму, а не для постійного зберігання даних. Інструкція: [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md).
 
 ## Вимоги
 
