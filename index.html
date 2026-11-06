@@ -118,7 +118,7 @@
             <div class="game-icon">🎰</div>
             <div class="game-info">
                 <div class="game-title">Neon Slots</div>
-                <a href="slots.php" class="btn-play">ГРАТИ</a>
+                <a href="slots.html" class="btn-play">ГРАТИ</a>
             </div>
         </div>
 
@@ -142,20 +142,12 @@
 
     </div>
 
+    <script src="config.js"></script>
+    <script src="casino-api.js"></script>
     <script>
-        // Завантажуємо баланс з бази даних при відкритті лобі
-        fetch('api/user.php')
-            .then(res => res.json())
-            .then(data => { 
-                if(data.success) {
-                    document.getElementById('balanceDisplay').innerText = parseFloat(data.balance).toFixed(2);
-                } else {
-                    document.getElementById('balanceDisplay').innerText = 'Помилка';
-                }
-            })
-            .catch(() => {
-                document.getElementById('balanceDisplay').innerText = 'Error'; 
-            });
+        CasinoAPI.user()
+            .then(data => { document.getElementById('balanceDisplay').innerText = Number(data.balance).toFixed(2); })
+            .catch(() => { document.getElementById('balanceDisplay').innerText = 'Помилка'; });
     </script>
 
 </body>

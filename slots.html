@@ -100,6 +100,8 @@
         <a href="index.html" class="back-link">← Повернутися в лобі</a>
     </div>
 
+    <script src="config.js"></script>
+    <script src="casino-api.js"></script>
     <script>
         const spinBtn = document.getElementById('spinBtn');
         const slotsDisp = document.getElementById('slotsDisplay');
@@ -111,9 +113,8 @@
         const sevenSound = document.getElementById('sevenSound');
 
         // Завантажуємо баланс при відкритті
-        fetch('api/user.php')
-            .then(res => res.json())
-            .then(data => { if(data.success) balanceDisp.innerText = parseFloat(data.balance).toFixed(2); });
+        CasinoAPI.user().then(data => { balanceDisp.innerText = Number(data.balance).toFixed(2); })
+            .catch(err => { msgDisp.innerText = err.message; });
 
         spinBtn.addEventListener('click', async () => {
             const currentBet = betSelect.value;
@@ -123,14 +124,7 @@
             msgDisp.innerText = '';
 
             try {
-                // Передаємо обрану ставку на сервер через GET-параметр
-                const response = await fetch(`api/spin.php?bet=${currentBet}`); 
-                const data = await response.json();
-
-                if (data.error) {
-                    msgDisp.innerText = 'Помилка: ' + data.error;
-                    msgDisp.style.color = '#ff3333';
-                } else {
+                const data = await CasinoAPI.spin(Number(currentBet));
                     slotsDisp.innerText = data.result.join(' ');
                     balanceDisp.innerText = parseFloat(data.new_balance).toFixed(2);
 
@@ -153,9 +147,8 @@
                         msgDisp.innerText = 'Спробуй ще!';
                         msgDisp.style.color = '#aaa';
                     }
-                }
             } catch (err) {
-                msgDisp.innerText = 'Помилка з\'єднання з сервером';
+                msgDisp.innerText = err.message || 'Помилка з\'єднання з сервером';
                 msgDisp.style.color = '#ff3333';
             }
 

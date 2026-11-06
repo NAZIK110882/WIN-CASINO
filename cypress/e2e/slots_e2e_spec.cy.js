@@ -6,12 +6,12 @@ describe('WIN-CASINO E2E - Slots UI flows', () => {
   });
 
   it('Displays balance on slots page load', () => {
-    cy.intercept('GET', '**/api/user.php', {
+    cy.intercept('GET', '**/api/v1/user', {
       statusCode: 200,
       body: { success: true, username: 'tester', balance: '123.45' }
     }).as('getUser');
 
-    cy.visit('/slots.php');
+    cy.visit('/slots.html');
 
     cy.wait('@getUser');
 
@@ -20,10 +20,10 @@ describe('WIN-CASINO E2E - Slots UI flows', () => {
 
   it('Successful spin updates slots, balance and shows jackpot message for triple 7', () => {
     // stub user balance
-    cy.intercept('GET', '**/api/user.php', { success: true, username: 'tester', balance: '200.00' }).as('getUser');
+    cy.intercept('GET', '**/api/v1/user', { success: true, username: 'tester', balance: '200.00' }).as('getUser');
 
-    // stub spin response for bet=50
-    cy.intercept({ method: 'GET', url: '**/api/spin.php*' }, (req) => {
+    // Stub the API response so this scenario checks the UI independently of DB state.
+    cy.intercept({ method: 'POST', url: '**/api/v1/spin' }, (req) => {
       // simulate response for bet 50
       req.reply({
         statusCode: 200,
@@ -37,7 +37,7 @@ describe('WIN-CASINO E2E - Slots UI flows', () => {
       });
     }).as('spin');
 
-    cy.visit('/slots.php');
+    cy.visit('/slots.html');
     cy.wait('@getUser');
 
     // ensure bet select has value 50 (default in UI)
@@ -49,28 +49,30 @@ describe('WIN-CASINO E2E - Slots UI flows', () => {
 
     cy.get('#slotsDisplay').should('contain', '7️⃣');
     cy.get('#balanceDisplay').should('contain', '2700.00');
-    cy.get('#messageDisplay').should('contain', 'ДЖЕКПOT').or('contain', 'Виграш');
+    cy.get('#messageDisplay').should(($message) => {
+      expect($message.text()).to.match(/ДЖЕКПOT|Виграш/);
+    });
   });
 
   it('Spin with insufficient funds shows error message and keeps balance unchanged', () => {
-    cy.intercept('GET', '**/api/user.php', { success: true, username: 'tester', balance: '10.00' }).as('getUser');
+    cy.intercept('GET', '**/api/v1/user', { success: true, username: 'tester', balance: '10.00' }).as('getUser');
 
-    cy.intercept({ method: 'GET', url: '**/api/spin.php*' }, {
-      statusCode: 200,
-      body: { error: 'Недостатньо коштів' }
+    cy.intercept({ method: 'POST', url: '**/api/v1/spin' }, {
+      statusCode: 422,
+      body: { success: false, error: { code: 'insufficient_funds', message: 'Недостатньо коштів' } }
     }).as('spinInsufficient');
 
-    cy.visit('/slots.php');
+    cy.visit('/slots.html');
     cy.wait('@getUser');
 
-    // choose a large bet to trigger insufficient funds scenario in UI
+    // Choose a large bet to cover the insufficient-funds response.
     cy.get('#betSelect').select('100');
 
     cy.get('#spinBtn').click();
 
     cy.wait('@spinInsufficient');
 
-    cy.get('#messageDisplay').should('contain', 'Помилка: Недостатньо коштів');
+    cy.get('#messageDisplay').should('contain', 'Недостатньо коштів');
     cy.get('#balanceDisplay').should('contain', '10.00');
   });
 });

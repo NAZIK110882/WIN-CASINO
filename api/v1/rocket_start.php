@@ -7,18 +7,13 @@ require __DIR__ . '/../bootstrap.php';
 use App\Http\Json;
 use App\Security\Auth;
 use App\Security\Validator;
+use App\Service\GameService;
 use App\Service\UserService;
+use App\Support\Database;
 
-/**
- * Обгортка: автентифікація + валідація + rate limit (в bootstrap) -> стара ігрова логіка.
- * Стара логіка бере user id з $GLOBALS['AUTH_USER_ID'] і ставку з $GLOBALS['VALIDATED_BET'].
- */
 Json::requireMethod('POST');
 $userId = Auth::requireUserId();
 $bet = Validator::amount(Json::body()['bet'] ?? null, 'bet', 1, 1000);
-
-$GLOBALS['AUTH_USER_ID'] = $userId;
-$GLOBALS['VALIDATED_BET'] = $bet;
-register_shutdown_function(static fn () => UserService::forget($userId)); // баланс змінився -> скинути кеш
-
-require __DIR__ . '/../rocket_start.php';
+$result = (new GameService(Database::pdo()))->startRocket($userId, $bet);
+UserService::forget($userId);
+Json::send(200, $result);

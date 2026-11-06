@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ---------- Continuous Testing: lint + unit + (integration) + coverage + SonarCloud ----------
+  # ---------- Continuous Testing: lint + unit + integration + coverage + optional SonarCloud ----------
   test:
     runs-on: ubuntu-latest
     services:
@@ -37,7 +37,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
-          extensions: pdo_mysql
+          extensions: mbstring, pdo_mysql, pdo_sqlite
           coverage: pcov
 
       - name: Composer install
@@ -50,12 +50,12 @@ jobs:
         run: mysql -h 127.0.0.1 -uroot -proot casino_db < docker/mysql-init.sql
 
       - name: Unit tests + coverage
-        run: php vendor/bin/phpunit --coverage-clover coverage/clover.xml
+        run: |
+          mkdir -p coverage
+          php vendor/bin/phpunit -c phpunit.xml --coverage-clover coverage/clover.xml
 
       - name: Integration tests
-        # якщо phpunit.integration.xml потребує інших параметрів БД — підлаштуйте env вище
         run: php vendor/bin/phpunit -c phpunit.integration.xml
-        continue-on-error: true
 
       - name: SonarCloud scan
         if: env.SONAR_TOKEN != ''
@@ -97,7 +97,6 @@ jobs:
         uses: cypress-io/github-action@v6
         with:
           config: baseUrl=http://localhost:8080
-        continue-on-error: true   # приберіть після адаптації тестів під авторизацію
 
       - name: Logs on failure
         if: failure()
@@ -107,11 +106,11 @@ jobs:
         if: always()
         run: docker compose down -v
 
-  # ---------- Публікація образів у Docker Hub ----------
+  # ---------- Публікація образів у Docker Hub (opt-in) ----------
   publish:
     runs-on: ubuntu-latest
     needs: [test, e2e]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PUBLISH_DOCKER_IMAGES == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -144,10 +143,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ---------- Деплой на production-сервер ----------
+  # ---------- Деплой на production-сервер (opt-in) ----------
   deploy:
     runs-on: ubuntu-latest
     needs: publish
+    if: vars.DEPLOY_ENABLED == 'true'
     environment: production
     steps:
       - uses: actions/checkout@v4
@@ -165,6 +165,7 @@ jobs:
             export IMAGE_TAG=${{ github.sha }}
             docker compose -f docker-compose.prod.yml --env-file .env pull
             docker compose -f docker-compose.prod.yml --env-file .env up -d --remove-orphans
+            docker compose -f docker-compose.prod.yml --env-file .env exec -T backend php scripts/migrate.php
             docker image prune -f
 
       - name: Post-deploy smoke test

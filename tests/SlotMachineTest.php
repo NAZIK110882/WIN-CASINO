@@ -86,7 +86,12 @@ class SlotMachineTest extends TestCase
         $selectStmt->method('fetch')->willReturn(['balance' => $currentBalance]);
 
         $expectedWin = $bet * 50;
-        $updateStmt->expects($this->once())->method('execute')->with([$this->equalTo($currentBalance - $bet + $expectedWin), $userId]);
+        $expectedBalance = $currentBalance - $bet + $expectedWin;
+        $updateStmt->expects($this->once())->method('execute')->with($this->callback(
+            static fn (array $args): bool => count($args) === 2
+                && abs((float) $args[0] - $expectedBalance) < 0.001
+                && $args[1] === $userId
+        ));
 
         $pdo->method('inTransaction')->willReturn(false);
 
@@ -119,7 +124,12 @@ class SlotMachineTest extends TestCase
         $selectStmt->method('fetch')->willReturn(['balance' => $currentBalance]);
 
         $expectedWin = $bet * 25;
-        $updateStmt->expects($this->once())->method('execute')->with([$this->equalTo($currentBalance - $bet + $expectedWin), $userId]);
+        $expectedBalance = $currentBalance - $bet + $expectedWin;
+        $updateStmt->expects($this->once())->method('execute')->with($this->callback(
+            static fn (array $args): bool => count($args) === 2
+                && abs((float) $args[0] - $expectedBalance) < 0.001
+                && $args[1] === $userId
+        ));
 
         $pdo->method('inTransaction')->willReturn(false);
 
@@ -152,7 +162,12 @@ class SlotMachineTest extends TestCase
         $selectStmt->method('fetch')->willReturn(['balance' => $currentBalance]);
 
         $expectedWin = $bet * 2;
-        $updateStmt->expects($this->once())->method('execute')->with([$this->equalTo($currentBalance - $bet + $expectedWin), $userId]);
+        $expectedBalance = $currentBalance - $bet + $expectedWin;
+        $updateStmt->expects($this->once())->method('execute')->with($this->callback(
+            static fn (array $args): bool => count($args) === 2
+                && abs((float) $args[0] - $expectedBalance) < 0.001
+                && $args[1] === $userId
+        ));
 
         $pdo->method('inTransaction')->willReturn(false);
 

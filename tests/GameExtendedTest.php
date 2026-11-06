@@ -34,7 +34,7 @@ class GameExtendedTest extends TestCase
     public function testPlayWithFloatBetGetsCastToInt(): void
     {
         $game = new Game();
-        // float 10.9 is cast to int 10 by the type declaration coercion
+        // The game keeps integer bet behavior by explicitly casting the input.
         $this->assertEquals("Гра почалася зі ставкою 10", $game->play(10.9));
     }
 
@@ -99,7 +99,13 @@ class GameExtendedTest extends TestCase
 
     public function testRouteNotFoundSetsHttpResponseCode(): void
     {
-        ApiRouter::route('/another-missing-path');
+        ob_start();
+        try {
+            ApiRouter::route('/another-missing-path');
+        } finally {
+            ob_end_clean();
+        }
+
         $this->assertEquals(404, http_response_code());
     }
 

@@ -10,15 +10,15 @@ class SlotMachine
      */
     private $symbolSelector;
 
-    public function __construct(\PDO $pdo, callable $symbolSelector = null)
+    public function __construct(\PDO $pdo, ?callable $symbolSelector = null)
     {
         $this->pdo = $pdo;
         $this->symbols = ['🍒', '🍋', '🔔', '💎', '7️⃣', '🍉', '🍇', '🍀'];
-        $this->symbolSelector = $symbolSelector ?? function (array $symbols) {
+        $this->symbolSelector = $symbolSelector ?? static function (array $symbols): array {
             return [
-                $symbols[array_rand($symbols)],
-                $symbols[array_rand($symbols)],
-                $symbols[array_rand($symbols)],
+                $symbols[random_int(0, count($symbols) - 1)],
+                $symbols[random_int(0, count($symbols) - 1)],
+                $symbols[random_int(0, count($symbols) - 1)],
             ];
         };
     }
@@ -34,21 +34,21 @@ class SlotMachine
      */
     public function spin(int $userId, $bet): array
     {
-        $betAmount = (float) $bet;
-        if ($betAmount <= 0) {
-            throw new \InvalidArgumentException('Ставка має бути більшою за нуль.');
+        if (!is_numeric($bet) || (float) $bet < 1 || (float) $bet > 1000) {
+            throw new \InvalidArgumentException('Ставка має бути від 1 до 1000.');
         }
+        $betAmount = round((float) $bet, 2);
 
         try {
             $this->pdo->beginTransaction();
 
-            $select = $this->pdo->prepare('SELECT balance FROM users WHERE id = ? FOR UPDATE');
+            $lockClause = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+            $select = $this->pdo->prepare('SELECT balance FROM users WHERE id = ?' . $lockClause);
             $select->execute([$userId]);
             $userRow = $select->fetch(\PDO::FETCH_ASSOC);
 
             if (!$userRow || $userRow['balance'] < $betAmount) {
-                $this->pdo->rollBack();
-                throw new \RuntimeException('Недостатньо коштів');
+                throw new \App\Http\HttpException(422, 'insufficient_funds', 'Недостатньо коштів');
             }
 
             $currentBalance = (float) $userRow['balance'];
@@ -72,6 +72,15 @@ class SlotMachine
             $update = $this->pdo->prepare('UPDATE users SET balance = ? WHERE id = ?');
             $update->execute([$newBalance, $userId]);
 
+            // Keep game history when the application schema is installed. Lightweight
+            // test databases may intentionally omit this optional table.
+            if ($this->hasGameRoundsTable()) {
+                $history = $this->pdo->prepare(
+                    'INSERT INTO game_rounds (user_id, game, bet, win) VALUES (?, ?, ?, ?)'
+                );
+                $history->execute([$userId, 'slots', $betAmount, $winAmount]);
+            }
+
             $this->pdo->commit();
 
             return [
@@ -84,7 +93,28 @@ class SlotMachine
             if ($this->pdo->inTransaction()) {
                 try { $this->pdo->rollBack(); } catch (\Throwable $_) {}
             }
+            if ($e instanceof \App\Http\HttpException) {
+                throw $e;
+            }
             throw new \RuntimeException('Помилка транзакції: ' . $e->getMessage(), 0, $e);
         }
+    }
+
+    private function hasGameRoundsTable(): bool
+    {
+        $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $statement = $this->pdo->prepare(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'game_rounds'"
+            );
+            $statement->execute();
+            return (bool) $statement->fetchColumn();
+        }
+
+        if ($driver !== 'mysql') {
+            return false;
+        }
+
+        return true;
     }
 }

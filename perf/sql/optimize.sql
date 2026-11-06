@@ -8,11 +8,19 @@ DROP INDEX idx_rounds_user_id    ON game_rounds;
 DROP INDEX idx_rounds_created_at ON game_rounds;
 
 -- 1) Історія гравця
+EXPLAIN
+SELECT id, game, bet, win, created_at FROM game_rounds
+ WHERE user_id = @uid ORDER BY id DESC LIMIT 20;
 EXPLAIN ANALYZE
 SELECT id, game, bet, win, created_at FROM game_rounds
  WHERE user_id = @uid ORDER BY id DESC LIMIT 20;
 
 -- 2) Лідерборд за 24 год
+EXPLAIN
+SELECT u.username, SUM(r.win - r.bet) AS profit
+  FROM game_rounds r JOIN users u ON u.id = r.user_id
+ WHERE r.created_at >= NOW() - INTERVAL 1 DAY
+ GROUP BY r.user_id, u.username ORDER BY profit DESC LIMIT 10;
 EXPLAIN ANALYZE
 SELECT u.username, SUM(r.win - r.bet) AS profit
   FROM game_rounds r JOIN users u ON u.id = r.user_id
@@ -23,12 +31,20 @@ SELECT u.username, SUM(r.win - r.bet) AS profit
 CREATE INDEX idx_rounds_user_id    ON game_rounds (user_id, id);
 CREATE INDEX idx_rounds_created_at ON game_rounds (created_at, user_id, bet, win);
 
--- 4) Скриншот "ПІСЛЯ": ті самі запити. Очікування: type=ref/range замість ALL,
---    rows з ~500 000 -> десятки/тисячі, зникає "Using filesort" для запиту 1.
+-- 4) Скриншот "ПІСЛЯ": ті самі запити. Порівняйте фактичні type/key/rows,
+--    actual rows/time та filesort; не підставляйте очікувані значення.
+EXPLAIN
+SELECT id, game, bet, win, created_at FROM game_rounds
+ WHERE user_id = @uid ORDER BY id DESC LIMIT 20;
 EXPLAIN ANALYZE
 SELECT id, game, bet, win, created_at FROM game_rounds
  WHERE user_id = @uid ORDER BY id DESC LIMIT 20;
 
+EXPLAIN
+SELECT u.username, SUM(r.win - r.bet) AS profit
+  FROM game_rounds r JOIN users u ON u.id = r.user_id
+ WHERE r.created_at >= NOW() - INTERVAL 1 DAY
+ GROUP BY r.user_id, u.username ORDER BY profit DESC LIMIT 10;
 EXPLAIN ANALYZE
 SELECT u.username, SUM(r.win - r.bet) AS profit
   FROM game_rounds r JOIN users u ON u.id = r.user_id

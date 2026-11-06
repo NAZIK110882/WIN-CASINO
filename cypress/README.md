@@ -4,7 +4,7 @@ This folder contains end-to-end tests using Cypress that exercise main user flow
 
 Prerequisites
 - Node.js (>=16)
-- The application accessible at the base URL specified in `cypress.json` (default: http://127.0.0.1/WIN-CASINO)
+- The frontend container accessible at the base URL specified in `cypress.config.js` (default: http://localhost:8080)
 
 Install
 ```
@@ -22,5 +22,5 @@ npm run cypress:run
 ```
 
 Notes
-- The tests stub API responses using `cy.intercept` so they are resilient if your local backend is not available. For full end-to-end coverage, remove or adjust the intercepts so the tests call the real backend.
-- If your app is hosted at a different URL, update `cypress.json` or set `CYPRESS_baseUrl` environment variable when running.
+- The scenarios visit `/slots.html`, which is included in the frontend image. They stub legacy API responses with `cy.intercept` to keep UI checks deterministic. API integration with the real backend is checked separately by `scripts/smoke.sh` in CI.
+- If your app is hosted at a different URL, update `cypress.config.js` or set `CYPRESS_baseUrl` environment variable when running.

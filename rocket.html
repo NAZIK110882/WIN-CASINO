@@ -202,6 +202,8 @@
         <div><a href="index.html" class="back-link">← Повернутися в лобі</a></div>
     </div>
 
+    <script src="config.js"></script>
+    <script src="casino-api.js"></script>
     <script>
         const startBtn = document.getElementById('startBtn');
         const cashoutBtn = document.getElementById('cashoutBtn');
@@ -224,8 +226,9 @@
 
         let currentMultiplier = 1.00;
         let gameInterval = null;
+        let stateInterval = null;
         let isPlaying = false;
-        let crashPoint = 2.00;
+        let activeRoundId = null;
 
         function resizeCanvas() {
             canvas.width = canvas.parentElement.clientWidth;
@@ -287,9 +290,8 @@
             }
         }
 
-        fetch('api/user.php')
-            .then(res => res.json())
-            .then(data => { if(data.success) balanceDisp.innerText = parseFloat(data.balance).toFixed(2); });
+        CasinoAPI.user().then(data => { balanceDisp.innerText = Number(data.balance).toFixed(2); })
+            .catch(err => { msgDisp.innerText = err.message; });
 
         startBtn.addEventListener('click', async () => {
             const bet = betInput.value;
@@ -297,28 +299,16 @@
             msgDisp.innerText = '';
 
             try {
-                const res = await fetch('api/rocket_start.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bet: bet })
-                });
-                const data = await res.json();
-
-                if (data.error) {
-                    msgDisp.innerText = data.error;
-                    msgDisp.style.color = '#ff3333';
-                    startBtn.disabled = false;
-                    return;
-                }
+                const data = await CasinoAPI.rocketStart(Number(bet));
 
                 balanceDisp.innerText = data.new_balance.toFixed(2);
+                activeRoundId = data.round_id;
                 betControlSection.style.display = 'none';
                 startBtn.style.display = 'none';
                 cashoutBtn.style.display = 'block';
                 
                 currentMultiplier = 1.00;
                 isPlaying = true;
-                crashPoint = parseFloat(data.crash_point) || 2.00;
 
                 let startTime = Date.now();
                 const maxScreenMultiplier = 3.50;
@@ -326,21 +316,32 @@
                 gameInterval = setInterval(() => {
                     let elapsedSeconds = (Date.now() - startTime) / 1000;
                     
-                    currentMultiplier = 1.00 + elapsedSeconds * 0.75;
+                    currentMultiplier = Math.min(3.50, 1.00 + elapsedSeconds * 0.75);
                     multDisp.innerText = currentMultiplier.toFixed(2) + 'x';
 
                     let progress = (currentMultiplier - 1.00) / (maxScreenMultiplier - 1.00);
                     drawGraph(progress, false);
 
-                    if (currentMultiplier >= crashPoint) {
-                        currentMultiplier = crashPoint;
-                        multDisp.innerText = currentMultiplier.toFixed(2) + 'x';
-                        endGame();
-                    }
                 }, 40);
 
+                stateInterval = setInterval(async () => {
+                    if (!isPlaying) return;
+                    try {
+                        const state = await CasinoAPI.rocketState();
+                        if (state.active && state.round_id === activeRoundId) {
+                            currentMultiplier = state.multiplier;
+                            multDisp.innerText = currentMultiplier.toFixed(2) + 'x';
+                        } else if (state.crashed || !state.active) {
+                            currentMultiplier = state.multiplier || currentMultiplier;
+                            endGame();
+                        }
+                    } catch (err) {
+                        msgDisp.innerText = err.message || 'Не вдалося оновити стан раунду';
+                    }
+                }, 800);
+
             } catch (err) {
-                msgDisp.innerText = 'Помилка сервера';
+                msgDisp.innerText = err.message || 'Помилка сервера';
                 msgDisp.style.color = '#ff3333';
                 startBtn.disabled = false;
             }
@@ -349,27 +350,25 @@
         cashoutBtn.addEventListener('click', async () => {
             if (!isPlaying) return;
             clearInterval(gameInterval);
+            clearInterval(stateInterval);
             isPlaying = false;
 
             try {
-                const res = await fetch('api/rocket_win.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ multiplier: currentMultiplier, bet: betInput.value })
-                });
-                const data = await res.json();
-
-                if (data.success) {
-                    balanceDisp.innerText = data.new_balance.toFixed(2);
-                    winModalText.innerText = `Ви виграли: $${data.win.toFixed(2)}!`;
-                    winModal.style.display = 'flex';
-                    winVideo.currentTime = 0;
-                    winVideo.play();
-                } else {
-                    msgDisp.innerText = data.error || 'Помилка транзакції';
-                }
+                const data = await CasinoAPI.rocketCashOut(activeRoundId);
+                balanceDisp.innerText = data.new_balance.toFixed(2);
+                winModalText.innerText = `Ви виграли: $${data.win.toFixed(2)}!`;
+                winModal.style.display = 'flex';
+                winVideo.currentTime = 0;
+                winVideo.play();
             } catch (err) {
-                msgDisp.innerText = 'Помилка зв’язку з сервером';
+                msgDisp.innerText = err.message || 'Помилка зв’язку з сервером';
+                if (err.status === 409) {
+                    drawGraph((currentMultiplier - 1.00) / 2.50, true);
+                    multDisp.innerText = '💥 CRASH';
+                    looseModal.style.display = 'flex';
+                    looseVideo.currentTime = 0;
+                    looseVideo.play();
+                }
             }
 
             resetUI();
@@ -379,6 +378,7 @@
             if (!isPlaying) return;
             isPlaying = false;
             clearInterval(gameInterval);
+            clearInterval(stateInterval);
 
             const maxScreenMultiplier = 3.50;
             let finalProgress = (currentMultiplier - 1.00) / (maxScreenMultiplier - 1.00);
@@ -393,6 +393,8 @@
         }
 
         function resetUI() {
+            clearInterval(gameInterval);
+            clearInterval(stateInterval);
             cashoutBtn.style.display = 'none';
             startBtn.style.display = 'block';
             startBtn.disabled = false;

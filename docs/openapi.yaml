@@ -1,0 +1,406 @@
+openapi: 3.1.0
+info:
+  title: WIN-CASINO API
+  version: 1.0.0
+  description: >-
+    API навчального застосунку WIN-CASINO. Баланс і ставки є демонстраційними,
+    платежі та реальні кошти не підтримуються.
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local Docker development
+  - url: https://{apiDomain}/api/v1
+    description: Production (configure API domain)
+    variables:
+      apiDomain:
+        default: api.example.com
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Перевірити доступність API та бази даних
+      security: []
+      responses:
+        '200':
+          description: API та база даних доступні
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /login:
+    post:
+      operationId: login
+      summary: Увійти та отримати JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 50
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+      responses:
+        '200':
+          description: Успішна автентифікація
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, token, token_type, expires_in]
+                properties:
+                  success: { type: boolean, const: true }
+                  token: { type: string }
+                  token_type: { type: string, const: Bearer }
+                  expires_in: { type: integer, description: Тривалість токена у секундах }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /user:
+    get:
+      operationId: getUser
+      summary: Отримати баланс автентифікованого гравця
+      responses:
+        '200':
+          description: Профіль у форматі API v1
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, balance]
+                properties:
+                  success: { type: boolean, const: true }
+                  balance: { type: number, minimum: 0 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /v2/user:
+    servers:
+      - url: http://localhost:8000/api
+        description: Local API base for version 2
+    get:
+      operationId: getUserV2
+      summary: Отримати розширений профіль у форматі API v2
+      responses:
+        '200':
+          description: Профіль з окремим data/meta envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: object
+                    required: [id, username, balance]
+                    properties:
+                      id: { type: integer }
+                      username: { type: string }
+                      balance:
+                        type: object
+                        required: [amount, currency]
+                        properties:
+                          amount: { type: number }
+                          currency: { type: string, const: USD }
+                  meta:
+                    type: object
+                    properties:
+                      version: { type: string, const: v2 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /spin:
+    post:
+      operationId: spinSlots
+      summary: Зробити ставку у слотах
+      requestBody:
+        $ref: '#/components/requestBodies/Bet'
+      responses:
+        '200':
+          description: Результат раунду
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, result, bet, win, new_balance]
+                properties:
+                  success: { type: boolean, const: true }
+                  result:
+                    type: array
+                    minItems: 3
+                    maxItems: 3
+                    items: { type: string }
+                  bet: { type: number }
+                  win: { type: number }
+                  new_balance: { type: number, minimum: 0 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /bonanza:
+    post:
+      operationId: playBonanza
+      summary: Зіграти раунд Sugar Bonanza
+      requestBody:
+        $ref: '#/components/requestBodies/Bet'
+      responses:
+        '200':
+          description: Результат раунду з полем 5 на 5
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, grid, win, new_balance, winning_symbols, bonus_game]
+                properties:
+                  success: { type: boolean, const: true }
+                  grid:
+                    type: array
+                    minItems: 25
+                    maxItems: 25
+                    items: { type: string }
+                  win: { type: number }
+                  new_balance: { type: number, minimum: 0 }
+                  winning_symbols:
+                    type: array
+                    items: { type: string }
+                  bonus_game: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /rocket_start:
+    post:
+      operationId: startRocketRound
+      summary: Почати раунд Space Crash
+      requestBody:
+        $ref: '#/components/requestBodies/Bet'
+      responses:
+        '200':
+          description: Раунд створено та ставку списано
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, new_balance]
+                properties:
+                  success: { type: boolean, const: true }
+                  round_id: { type: integer }
+                  new_balance: { type: number, minimum: 0 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /rocket_win:
+    post:
+      operationId: cashOutRocket
+      summary: Забрати виграш активного раунду Space Crash
+      description: Множник розраховується сервером за часом раунду; клієнт передає лише ідентифікатор.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [round_id]
+              properties:
+                round_id: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Виграш зараховано
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, win, new_balance]
+                properties:
+                  success: { type: boolean, const: true }
+                  win: { type: number }
+                  new_balance: { type: number, minimum: 0 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Раунд уже завершився або був закритий crash
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /rocket_state:
+    get:
+      operationId: getRocketState
+      summary: Перевірити стан активного раунду без розкриття crash point
+      responses:
+        '200':
+          description: Поточний множник або інформація про завершений crash
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [active]
+                properties:
+                  active: { type: boolean }
+                  round_id: { type: integer }
+                  multiplier: { type: number }
+                  crashed: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /history:
+    get:
+      operationId: getGameHistory
+      summary: Отримати історію раундів поточного користувача
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: before
+          in: query
+          required: false
+          description: Повернути записи з меншим ідентифікатором для keyset-пагінації
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Сторінка історії
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, items, next_before]
+                properties:
+                  success: { type: boolean, const: true }
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        game: { type: string }
+                        bet: { type: number }
+                        win: { type: number }
+                        created_at: { type: string }
+                  next_before: { type: [integer, 'null'] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      summary: Отримати десятку лідерів за прибутком за останню добу
+      responses:
+        '200':
+          description: Список гравців
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, items]
+                properties:
+                  success: { type: boolean, const: true }
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [username, profit]
+                      properties:
+                        username: { type: string }
+                        profit: { type: number }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /admin_stats:
+    get:
+      operationId: getAdminStats
+      summary: Отримати агреговану статистику (лише admin)
+      responses:
+        '200':
+          description: Загальна кількість користувачів і балансів
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  users: { type: integer }
+                  total_balance: { type: number }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  requestBodies:
+    Bet:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [bet]
+            properties:
+              bet: { type: number, minimum: 1, maximum: 1000 }
+          example:
+            bet: 10
+  responses:
+    Unauthorized:
+      description: Відсутній, некоректний або прострочений токен
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Недостатньо прав для операції
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Ресурс або користувача не знайдено
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Некоректні параметри або тіло запиту
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RateLimited:
+      description: Перевищено ліміт запитів; відповідь містить Retry-After
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ServiceUnavailable:
+      description: База даних тимчасово недоступна
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Health:
+      type: object
+      required: [status, database, cache_driver, metrics]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        database: { type: string, enum: [up, down] }
+        cache_driver: { type: string }
+        metrics:
+          type: object
+          additionalProperties: { type: integer }
+    Error:
+      type: object
+      properties:
+        success: { type: boolean, const: false }
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object }

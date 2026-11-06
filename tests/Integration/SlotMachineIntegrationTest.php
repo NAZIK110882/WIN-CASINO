@@ -144,27 +144,10 @@ class SlotMachineIntegrationTest extends TestCase
         $this->initSchema($pdoReal);
         $this->seedUser($pdoReal, 6, 10.0);
 
-        // Create TestPDO which will throw on UPDATE execute
-        $pdo = new class('sqlite:' . $path) extends \PDO {
-            public function prepare($statement, $options = null)
-            {
-                $stmt = parent::prepare($statement, $options ?? []);
-                if (stripos($statement, 'update') !== false) {
-                    // wrap execute to throw
-                    return new class($stmt) extends \PDOStatement {
-                        private $inner;
-                        protected function __construct($inner) { $this->inner = $inner; }
-                        public function execute($input_parameters = null)
-                        {
-                            throw new \Exception('Simulated update failure');
-                        }
-                    };
-                }
-                return $stmt;
-            }
-        };
-
-        $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        // Make SQLite reject the balance update to exercise rollback behavior.
+        $pdoReal->exec("CREATE TRIGGER fail_balance_update BEFORE UPDATE ON users
+            BEGIN SELECT RAISE(ABORT, 'Simulated update failure'); END");
+        $pdo = $pdoReal;
 
         $selector = function (array $symbols) { return ['🍒','🍋','🔔']; };
 

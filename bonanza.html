@@ -156,6 +156,8 @@
         <a href="index.html" class="back-link">← У лобі</a>
     </div>
 
+    <script src="config.js"></script>
+    <script src="casino-api.js"></script>
     <script>
         const btn = document.getElementById('spinBtn');
         const gridDisp = document.getElementById('gridDisplay');
@@ -179,11 +181,8 @@
             gridDisp.appendChild(div); 
         }
         
-        fetch('api/user.php')
-            .then(res => res.json())
-            .then(data => { 
-                if(data.success) balanceDisp.innerText = parseFloat(data.balance).toFixed(2); 
-            });
+        CasinoAPI.user().then(data => { balanceDisp.innerText = Number(data.balance).toFixed(2); })
+            .catch(err => { msgDisp.innerText = err.message; });
 
         btn.addEventListener('click', async () => {
             // 🚀 ВІДТВОРЮЄМО ЗВУК МИТТЄВО (найперший рядок при кліку)
@@ -198,19 +197,7 @@
             gridDisp.innerHTML = '';
             
             try {
-                const response = await fetch('api/bonanza.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bet: currentBet })
-                });
-                const data = await response.json();
-
-                if (data.error) { 
-                    msgDisp.innerText = data.error; 
-                    msgDisp.style.color = 'red'; 
-                    btn.disabled = false; 
-                    return; 
-                }
+                const data = await CasinoAPI.bonanza(currentBet);
 
                 data.grid.forEach((symbol, index) => {
                     const cell = document.createElement('div');
@@ -251,7 +238,7 @@
                     btn.disabled = false;
                 }, 800);
             } catch (err) { 
-                msgDisp.innerText = 'Помилка сервера'; 
+                msgDisp.innerText = err.message || 'Помилка сервера';
                 btn.disabled = false; 
             }
         });

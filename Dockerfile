@@ -10,10 +10,13 @@ RUN composer dump-autoload --no-dev --classmap-authoritative
 
 # ---------- 2) базовий PHP+Apache ----------
 FROM php:8.3-apache AS base
-RUN docker-php-ext-install pdo_mysql opcache \
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libonig-dev \
+ && docker-php-ext-install mbstring pdo_mysql opcache \
  && pecl install redis \
  && docker-php-ext-enable redis \
  && a2enmod rewrite headers \
+ && apt-get purge -y --auto-remove libonig-dev \
  && rm -rf /var/lib/apt/lists/* /tmp/pear
 COPY docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
 COPY docker/php.ini /usr/local/etc/php/conf.d/zz-app.ini

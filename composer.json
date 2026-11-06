@@ -13,6 +13,8 @@
         }
     },
     "scripts": {
-        "test": "phpunit"
+        "test": "phpunit",
+        "test:unit": "phpunit -c phpunit.xml",
+        "test:integration": "php -d extension=pdo_sqlite -d extension=sqlite3 vendor/bin/phpunit -c phpunit.integration.xml"
     }
 }

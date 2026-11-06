@@ -29,6 +29,7 @@
       if (!res.ok) {
         const err = new Error((data.error && data.error.message) || `HTTP ${res.status}`);
         err.status = res.status;
+        err.code = data.error && data.error.code;
         err.retryAfter = res.headers.get('Retry-After');
         throw err;
       }
@@ -49,6 +50,8 @@
     spin: (bet) => request('spin', { method: 'POST', body: { bet } }),
     bonanza: (bet) => request('bonanza', { method: 'POST', body: { bet } }),
     rocketStart: (bet) => request('rocket_start', { method: 'POST', body: { bet } }),
+    rocketState: () => request('rocket_state'),
+    rocketCashOut: (roundId) => request('rocket_win', { method: 'POST', body: { round_id: roundId } }),
     history: (limit = 20, before) =>
       request(`history?limit=${limit}${before ? `&before=${before}` : ''}`),
     leaderboard: () => request('leaderboard'),

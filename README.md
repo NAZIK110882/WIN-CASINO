@@ -1,280 +1,147 @@
-# Winner Casino MVP 🎰🚀
+# WIN-CASINO
 
-Повноцінний навчальний командний вебпроєкт казино, створений для демонстрації повного циклу розробки сучасного веб-додатку: від проектування архітектури та бази даних до реалізації інтерфейсу, бекенду, API та організації командної роботи в Git.
+Навчальний вебзастосунок з іграми Neon Slots, Sugar Bonanza та Space Crash. Проєкт поєднує PHP API, MySQL, авторизацію, клієнтський інтерфейс, автоматизовані перевірки й Docker-оточення. Це демонстраційний проєкт: реальні гроші та платежі не підтримуються.
 
-Мета проєкту — показати, як побудувати просту, але функціональну казино-платформу з декількома іграми, балансом користувача, логікою ставок і серверною обробкою результатів.
+## Можливості
 
----
+- Ігрові сторінки та логіка ставок із серверним збереженням балансу.
+- PHP 8.2+, PDO та MySQL 8.4; Redis-кеш із файловим fallback.
+- Версійоване API `/api/v1` і `/api/v2`, JWT-автентифікація, рольова авторизація, валідація, CORS і rate limiting.
+- Механізми retry, timeout і circuit breaker.
+- PHPUnit unit та integration tests, Cypress UI E2E, API smoke checks і k6 сценарії.
+- Docker Compose для локального запуску; окремі production-конфігурація та GitHub Actions workflow.
 
-## Опис проєкту
-
-Winner Casino MVP — це веб-додаток для демонстрації роботи онлайн-казино з кількома іграми:
-
-- Neon Slots
-- Sugar Bonanza
-- Space Crash
-
-Користувач може:
-
-- переглядати доступні ігри;
-- бачити поточний баланс акаунта;
-- робити ставки;
-- отримувати результати раундів через серверну логіку;
-- взаємодіяти з бекендом через асинхронні HTTP-запити.
-
-Проєкт розроблявся як навчальний командний проект для відпрацювання навичок:
-
-- фронтенд-розробки;
-- роботи з PHP та PDO;
-- дизайну та структури API;
-- роботи з MySQL;
-- Git Flow, Pull Requests та Code Review.
-
----
-
-## Технологічний стек
-
-### Фронтенд
-- HTML5
-- CSS3
-- JavaScript (Vanilla JS)
-- Fetch API
-- HTML5 Canvas API
-
-### Бекенд
-- PHP 8+
-- PDO для безпечної роботи з базою даних
-- REST-подібні API-ендпоінти
-
-### База даних
-- MySQL
-- Реляційна структура даних
-- Транзакції та збереження балансу
-- Логування ігрових сесій
-
-### Локальне середовище
-- XAMPP
-- Apache HTTP Server
-- MySQL
-
-### Контроль версій
-- Git
-- GitHub
-- Feature branches
-- Pull Requests
-- Code Review
-
----
-
-## Структура проєкту
+## Структура
 
 ```text
-casino/
-├── index.html              # Головне лобі платформи, вибір ігор і статус акаунта
-├── slots.html              # Гра Neon Slots
-├── bonanza.html            # Гра Sugar Bonanza
-├── rocket.html             # Гра Space Crash
-├── spacecrash.jpg          # Фонове зображення для гри Space Crash
-├── bgslot.jpg              # Фонове зображення для слотів
-├── zela.png                # Графічний актив для анімації ракети
-├── api/                    # Серверна логіка та робота з базою даних
-│   ├── user.php            # Отримання актуального балансу та даних користувача
-│   ├── spin.php            # Генерація результату для слотів і розрахунок виграшу
-│   ├── bonanza.php         # Логіка каскадних виграшів Sugar Bonanza
-│   └── rocket_start.php    # Запуск раунду Space Crash і генерація коефіцієнта крашу
-├── README.md               # Документація проєкту
-└── .gitignore              # Налаштування Git
+api/                    shared bootstrap та versioned API endpoints
+src/                    ігрова логіка, HTTP, security, cache та resilience
+public/                 PHP public entry point, assets та сторінки ігор
+tests/                  PHPUnit unit та integration tests
+cypress/                Cypress E2E сценарії
+postman/                Postman collection з API checks
+docs/                   OpenAPI та інструкції до практикуму
+docker/                 MySQL schema, Apache, nginx, Caddy та PHP конфігурація
+perf/                   k6 сценарії й SQL для performance testing
+scripts/                database migration, seed та API smoke script
+.github/workflows/      CI/CD workflow
 ```
 
----
+`index.html`, `slots.html`, `bonanza.html` та `rocket.html` — статичний frontend. Він викликає PHP API окремого Apache контейнера. Старі неверсійовані API-маршрути вилучені; використовуйте `/api/v1/*`.
 
-## База даних
+## Вимоги
 
-Для стабільної роботи фінансових операцій та запобігання втратам коштів під час раундів використовується MySQL.
+- PHP 8.2+ з PDO, mbstring та PDO SQLite для integration tests.
+- Composer 2.
+- Node.js 16+ та npm для Cypress.
+- Docker Engine із Docker Compose v2 — рекомендований спосіб запустити повний застосунок локально.
 
-### Основна таблиця
-
-```sql
-CREATE DATABASE IF NOT EXISTS casino_db;
-USE casino_db;
-
-CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    balance DECIMAL(10, 2) DEFAULT 1000.00
-);
-
-INSERT INTO users (username, password_hash, balance)
-VALUES ('player1', 'hashed_pass_here', 1000.00);
-```
-
-### Рекомендована схема для розширення
-
-- `users` — основні дані гравців;
-- `transactions` — історія поповнень, виграшів і втрат;
-- `game_sessions` — лог ігрових сесій;
-- `round_history` — результати окремих раундів.
-
----
-
-## API-ендпоінти
-
-Взаємодія між клієнтом і сервером реалізована через асинхронні HTTP-запити за допомогою `fetch()`.
-
-### GET /api/user.php
-
-Повертає актуальний стан акаунта користувача і його баланс.
-
-Приклад відповіді:
-
-```json
-{
-  "success": true,
-  "balance": 1000.00
-}
-```
-
-### POST /api/spin.php
-
-Обробляє крутку слотів, списує ставку з балансу і нараховує виграш при збігу символів.
-
-Приклад запиту:
-
-```json
-{
-  "bet": 50
-}
-```
-
-Приклад відповіді:
-
-```json
-{
-  "success": true,
-  "result": ["🍒", "7️⃣", "🍋"],
-  "win": 0,
-  "new_balance": 950.00
-}
-```
-
-### POST /api/rocket_start.php
-
-Ініціює новий раунд у грі Space Crash, генерує випадковий коефіцієнт крашу і фіксує ставку користувача.
-
----
-
-## Локальний запуск
-
-### 1. Встановіть XAMPP
-
-Завантажте та встановіть XAMPP і увімкніть модулі:
-
-- Apache
-- MySQL
-
-### 2. Розмістіть проєкт у `htdocs`
-
-Скопіюйте каталог проєкту в кореневу папку вебсервера:
-
-```text
-C:\xampp\htdocs\Praktukym
-```
-
-### 3. Створіть базу даних
-
-Відкрийте phpMyAdmin і виконайте SQL-скрипт:
-
-```sql
-CREATE DATABASE IF NOT EXISTS casino_db;
-USE casino_db;
-
-CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    balance DECIMAL(10, 2) DEFAULT 1000.00
-);
-
-INSERT INTO users (username, password_hash, balance)
-VALUES ('player1', 'hashed_pass_here', 1000.00);
-```
-
-### 4. Відкрийте проєкт у браузері
-
-Перейдіть за посиланням:
-
-```text
-http://localhost/Praktukym/
-```
-
----
-
-## Командна робота та Git Workflow
-
-Проєкт створений для відпрацювання навичок колективної розробки. Щоб уникнути конфліктів у коді та підтримувати чисту історію комітів, команда дотримується таких правил:
-
-- не робити прямі коміти в гілку `main`;
-- кожне завдання виконувати в окремій гілці;
-- використовувати зрозумілі назви гілок;
-- відкривати Pull Request після завершення задачі;
-- проводити Code Review перед злиттям;
-- злиття в `main` можливе лише після схвалення зміни.
-
-### Рекомендований Git flow
+## Локальний запуск через Docker
 
 ```bash
-git checkout -b feature/your-task
-# розробка
-
-git add .
-git commit -m "Add feature: description"
-git push origin feature/your-task
+cp .env.example .env
 ```
 
-Після цього створюється Pull Request і виконується перевірка коду.
+Для локального навчального середовища значення у `.env.example` можна лишити. Для реального серверного використання замініть усі паролі й `JWT_SECRET` на випадкові секрети; `.env` не додавайте до Git.
 
----
+```bash
+docker compose up -d --build --wait
+docker compose exec backend php scripts/migrate.php
+docker compose exec backend php scripts/seed.php
+```
 
-## Основні функціональні можливості
+Адреси після запуску:
 
-- інтерфейс для вибору ігор;
-- логіка ставок і балансів;
-- серверна генерація результатів раундів;
-- динамічна візуалізація ігор;
-- інтеграція з базою даних через PHP/PDO;
-- можливість подальшого масштабування проєкту.
+- Frontend: <http://localhost:8080>
+- API health: <http://localhost:8000/api/v1/health>
+- Ігрові сторінки legacy frontend: <http://localhost:8080/slots.html>, `/bonanza.html`, `/rocket.html`
 
----
+Тестові облікові дані після seed беруться зі змінних `SEED_PLAYER_PASSWORD` і `SEED_ADMIN_PASSWORD` у `.env`. Не використовуйте їх у публічному production середовищі.
 
-## Переваги проєкту
+Зупинити середовище:
 
-- простота розуміння структури;
-- навчальна цінність для студентів і новачків;
-- демонстрація реального циклу розробки веб-додатку;
-- практичне вивчення JavaScript, PHP, SQL і Git.
+```bash
+docker compose down
+```
 
----
+Дані MySQL залишаються у Docker volume. Щоб видалити також локальні дані БД, виконайте `docker compose down -v`.
 
-## Автори та команда
+## Розробка без Docker
 
-Цей проєкт розроблений як командна навчальна робота для практики розподіленої розробки, роботи в GitHub, code review і взаємодії між фронтендом і бекендом.
+Встановіть залежності та задайте змінні середовища з `.env.example`. Для PHPUnit:
 
----
+```bash
+composer install
+composer test
 
-## Можливі покращення в майбутньому
+# Unit coverage summary in the terminal
+vendor/bin/phpunit --coverage-text
+composer test:integration
+```
 
-- реєстрація та авторизація користувачів;
-- хешування паролів через `password_hash()`;
-- історія транзакцій;
-- адмін-панель;
-- логування ігор;
-- автентифікація через сесії або JWT;
-- покращення UX і анімацій;
-- адаптація під мобільні пристрої.
+Для frontend E2E потрібен запущений сайт за адресою `http://localhost:8080`:
 
----
+```bash
+npm install
+npm run cypress:run
+```
 
-## Підсумок
+E2E сценарії перевіряють браузерний інтерфейс із контрольованими API-відповідями. Реальну інтеграцію API окремо перевіряє `scripts/smoke.sh` у CI та Docker-оточенні.
 
-Winner Casino MVP — це навчальний проєкт, що поєднує в собі веб-інтерфейс, бізнес-логіку, базу даних і командну розробку. Він добре підходить для практичного вивчення основ web-розробки, фінансової логіки ігор та застосування Git/GitHub у командній роботі.
+## Перевірки та звіти
+
+```bash
+# PHP syntax
+find api src scripts tests -name '*.php' -print0 | xargs -0 -n1 php -l
+
+# Unit suite
+composer test
+
+# Unit suite with a terminal coverage summary
+vendor/bin/phpunit --coverage-text
+
+# Integration suite окремо
+composer test:integration
+
+# API smoke (потрібен запущений stack і seeded DB)
+CASINO_PASSWORD='значення SEED_PLAYER_PASSWORD' \
+ALLOWED_ORIGIN=http://localhost:8080 \
+scripts/smoke.sh http://localhost:8000/api/v1
+```
+
+Coverage Clover-файл формується в CI як `coverage/clover.xml` та зберігається як artifact. Для локального summary встановіть Xdebug або PCOV і запустіть `vendor/bin/phpunit --coverage-text`. Показники SonarCloud, навантаження k6 і профілювання потрібно отримати під час запуску інструментів; самі конфігурації не є результатами вимірювання. Див. [інструкцію до практикуму](docs/PRACTICUM_GUIDE.md).
+
+## API документація
+
+OpenAPI 3.1 специфікація розташована в [docs/openapi.yaml](docs/openapi.yaml). Її можна відкрити через Swagger Editor або інший OpenAPI viewer. У специфікації описані методи, параметри, авторизація, статуси та формати відповідей.
+
+Основні маршрути:
+
+| Метод | Маршрут | Призначення |
+|---|---|---|
+| `GET` | `/api/v1/health` | Стан API, БД та кешу |
+| `POST` | `/api/v1/login` | Отримати JWT |
+| `GET` | `/api/v1/user` | Баланс поточного користувача |
+| `POST` | `/api/v1/spin` | Зробити ставку у слотах |
+| `POST` | `/api/v1/bonanza` | Зіграти раунд Bonanza |
+| `POST` | `/api/v1/rocket_start` | Почати раунд Space Crash |
+| `GET` | `/api/v1/rocket_state` | Отримати стан активного раунду |
+| `POST` | `/api/v1/rocket_win` | Забрати виграш активного раунду |
+| `GET` | `/api/v1/history` | Історія раундів користувача |
+| `GET` | `/api/v1/leaderboard` | Таблиця лідерів |
+| `GET` | `/api/v1/admin_stats` | Статистика для адміністратора |
+| `GET` | `/api/v2/user` | Профіль у форматі API v2 |
+
+Ставки та результати в цьому навчальному застосунку не є фінансовими операціями.
+
+## CI/CD та deployment
+
+Workflow `.github/workflows/ci-cd.yml` запускає lint, PHPUnit, API smoke та Cypress. Публікація образів і deployment є окремими опціональними jobs та вмикаються GitHub Actions variables; інструкція налаштування секретів і змінних наведена в [docs/PRACTICUM_GUIDE.md](docs/PRACTICUM_GUIDE.md). Успішний локальний build не означає, що застосунок вже опублікований або розгорнутий.
+
+## Командна робота
+
+Для кожної задачі створюйте окрему feature/fix/docs/test гілку, відкривайте Pull Request і просіть іншого учасника про review. Issues, GitHub Project/Kanban, призначення задач та історію review ведіть у GitHub — ці дані не зберігаються у локальних файлах проєкту.
+
+## Команда
+
+Додайте імена учасників та їхні ролі після узгодження з командою.

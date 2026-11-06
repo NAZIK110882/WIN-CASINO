@@ -1,32 +1,78 @@
-# Практикум: Модуль 1 і Модуль 2 — WIN-CASINO
+# Практикум з програмної інженерії — WIN-CASINO
 
-Цей набір накладається на корінь репозиторію (структура папок збережена). Нижче: що вже зроблено в коді,
-які команди запускати і що **фіксувати у звіті** (скриншот / таблиця / лог).
+Цей документ описує локальні реалізації, команди для їх демонстрації та докази, які потрібно зібрати для звіту.
+Наявність коду або workflow не є підтвердженням успішного запуску, вимірювання чи production deployment.
+
+## Поточний стан
+
+| Частина | Що є у локальному коді | Що ще треба зібрати або зробити вручну |
+|---|---|---|
+| Проєкт і Git | README, розділені директорії, історія гілок/PR | GitHub Project, виконавці задач і Code Review підтвердити у GitHub |
+| API та БД | MySQL schema, версії API, OpenAPI, PDO services, constraints та індекси | Зробити скриншоти схеми й показати OpenAPI viewer |
+| Тестування | PHPUnit unit/integration, 3 Cypress UI flows, Postman checks, smoke script | Запустити їх і долучити результати |
+| Якість і продуктивність | Sonar config, k6, SQL optimization та profiling інструкції | Sonar скриншоти, реальні benchmark/stress/profile метрики |
+| Надійність і захист | JWT, validation, CORS, rate limit, retry, circuit breaker, timeout, cache | Зібрати демонстраційні логи з локального запуску |
+| Docker і CI | Dockerfiles, Compose та GitHub Actions jobs | Локально зібрати контейнери, перевірити Actions у власному репозиторії |
+| Публікація і deployment | Опціональні jobs у workflow та production Compose | Потрібні власні Docker Hub secrets, сервер, домен і GitHub variables |
 
 ## 0. Підготовка (один раз)
 
 ```bash
-# 1. Скопіюйте вміст набору в корінь репозиторію (api/, src/, docker/, perf/, scripts/, tests/, .github/ ...)
-# 2. Додайте рядки з .gitignore.additions у .gitignore
-# 3. Приберіть з git те, чого там не має бути:
-git rm -r --cached vendor coverage .phpunit.result.cache
-# 4. Оновіть lock-файл після зміни composer.json
-composer update --lock
-# 5. Перевірка синтаксису PHP (я не міг запустити PHP у своєму середовищі — зробіть це у себе!)
+# В корені репозиторію
+composer install
+cp .env.example .env
+# Замініть JWT_SECRET і паролі перед використанням поза локальним навчальним середовищем.
+```
+
+Для рекомендованого локального середовища:
+
+```bash
+docker compose up -d --build --wait
+docker compose exec backend php scripts/seed.php
+```
+
+Для PHP поза Docker переконайтеся, що доступні PHP 8.2+, mbstring, PDO MySQL/SQLite і Composer 2. Потім виконайте:
+
+```bash
 find api src scripts tests -name '*.php' -print0 | xargs -0 -n1 php -l
-vendor/bin/phpunit
-# 6. Конфіг
-cp .env.example .env     # змініть паролі та JWT_SECRET (openssl rand -hex 32)
+composer test
+composer test:integration
 ```
 
 ---
 
-# МОДУЛЬ 1
+# МОДУЛЬ 1. Командна розробка та розвиток backend-проєкту
+
+## README і структура
+README описує призначення проєкту, стек, залежності, запуск і структуру. Перед здачею додайте реальні імена учасників та їхні ролі до розділу «Команда» у README.
+
+## GitHub Issues і Kanban
+У репозиторії створіть GitHub Project з колонками `Todo → In Progress → Review → Done`, додайте задачі та призначте кожному учаснику щонайменше дві. Переміщуйте задачі відповідно до роботи. **Доказ:** посилання/скриншот дошки з виконавцями. Цю частину потрібно виконати у GitHub; локальний код не може підтвердити її.
+
+## Перевірка бази даних
+Схема в `docker/mysql-init.sql` містить `users`, `game_rounds` і `rocket_rounds`, первинні та зовнішні ключі, унікальність ігрового імені, обмеження балансу/ставки та індекси історії. У звіті додайте ER-діаграму або скриншот схеми та коротко опишіть зв’язки `users 1:N game_rounds` і `users 1:N rocket_rounds`.
+
+## Learn Git Branching і гілки задач
+Виконайте щонайменше перші чотири модулі Learn Git Branching. Створюйте гілки задач від командної базової гілки, фіксуйте зміни окремими комітами та відкривайте PR для review. **Доказ:** скриншоти прогресу тренажера й історії PR/комітів.
+
+---
+
+# МОДУЛЬ 2. Автоматизоване тестування
+
+Проєкт має PHPUnit unit та integration suite і три Cypress E2E сценарії: показ балансу, успішне обертання слотів, недостатній баланс. Cypress зараз підміняє відповіді API, тому це перевіряє UI-поведінку; реальну взаємодію з backend перевіряє `scripts/smoke.sh`.
+
+Останній локальний запуск у цьому робочому дереві: `composer test` — **57 tests, 123 assertions**, `composer test:integration` — **13 tests, 37 assertions**. Обидва suite проходять, але PHPUnit показує deprecations. Cypress потрібно запускати з доступним frontend і зберегти його підсумок у доказах.
+
+PDF вимагає 15+ unit-тестів, 10+ тестів помилкових сценаріїв і 3+ E2E-тестів. Для звіту згрупуйте назви відповідних тестів за цими критеріями та додайте вивід успішних запусків.
+
+---
+
+# МОДУЛЬ 3. Якість, продуктивність, надійність і безпека ПЗ
 
 ## 1. Статичний аналіз (SonarCloud)
 1. https://sonarcloud.io → Log in with GitHub → **Analyze new project** → WIN-CASINO.
 2. У `sonar-project.properties` вкажіть свої `organization` і `projectKey`.
-3. GitHub → Settings → Secrets → додайте `SONAR_TOKEN`. CI (`.github/workflows/ci-cd.yml`) запустить скан автоматично.
+3. У власному репозиторії додайте secret `SONAR_TOKEN`. CI запустить скан за наявності токена; quality gate потрібно окремо переглянути у SonarCloud.
 4. **Звіт:** скриншот Overview (Bugs / Vulnerabilities / Code Smells / Security Hotspots / Coverage / Duplications / Maintainability Rating) — це стан **ДО**.
 
 ## 2. Рефакторинг
@@ -34,11 +80,11 @@ cp .env.example .env     # змініть паролі та JWT_SECRET (openssl 
 
 | Проблема (ймовірна) | Виправлення |
 |---|---|
-| Креди БД захардкоджені в кожному `api/*.php` | `Database::pdo()` (вже є в `src/Support/Database.php`) |
-| `rand()` / `mt_rand()` для результатів ігор (Sonar: *Security Hotspot — weak PRNG*) | `random_int()` |
-| `user id = 1` / id з тіла запиту | `$GLOBALS['AUTH_USER_ID']` (ставить обгортка `api/v1/*.php`) |
-| Баланс оновлюється без транзакції → гонка (double-spend) | `BEGIN; SELECT balance FROM users WHERE id=? FOR UPDATE; UPDATE ...; COMMIT;` |
-| Дублювання коду в `spin/bonanza/rocket_start` | винести в `src/Game/*` (класи з одним методом `play()`), ендпоінти лишити тонкими |
+| Конфігурація БД | Версійовані API використовують `src/Support/Database.php`; не повертайте credentials до prototype handlers |
+| Випадкові ігрові результати | Слот-символи та crash point генеруються через `random_int()` |
+| Ідентифікатор користувача | Гравець визначається з JWT; не приймайте user id із тіла запиту |
+| Баланс та одночасні ставки | Ігрові сервіси використовують транзакції та блокування рядка MySQL |
+| Межі відповідальності | Складні операції винесені у `SlotMachine` та `GameService`; тримайте API handlers тонкими |
 | «Магічні» числа (множники, шанси) | `const` / конфіг |
 | `echo json_encode` розкидано по файлах | `Json::send()` / `Json::error()` |
 | `vendor/`, `coverage/`, `.phpunit.result.cache` у git | `.gitignore` |
@@ -50,6 +96,7 @@ cp .env.example .env     # змініть паролі та JWT_SECRET (openssl 
 # Встановіть k6: https://k6.io/docs/get-started/installation/
 # У .env на час тесту: RATE_LIMIT_MAX=1000000  (інакше лімітер вас заблокує — це очікувано!)
 docker compose up -d --build
+docker compose exec backend php scripts/migrate.php
 docker compose exec backend php scripts/seed.php
 docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD"' < perf/sql/seed_rounds.sql   # 500k рядків
 
@@ -75,9 +122,9 @@ ls profiles/      # cachegrind.out.* → відкрийте у QCachegrind/KCach
 
 ## 5. Продуктивність БД
 Slow query log увімкнено в compose (`long_query_time=0.1`). Виконайте `perf/sql/optimize.sql` по блоках:
-**EXPLAIN ANALYZE до індексів → створення індексів → EXPLAIN ANALYZE після.**
-**Звіт:** таблиця `type / key / rows / actual time` до і після. Очікувано: `type=ALL, rows≈500000` → `type=ref/range`,
-`rows` на порядки менше, зникає `Using filesort`. Додатково — топ запитів з `performance_schema` (блок 5 у файлі).
+`optimize.sql` знімає звичайний `EXPLAIN` (type/key/estimated rows/Extra) і `EXPLAIN ANALYZE` (фактичні rows та час)
+до та після індексів. **Звіт:** запишіть фактичне порівняння, включно з `Using filesort`; не підставляйте очікувані значення.
+Додатково — топ запитів з `performance_schema` (блок 5 у файлі).
 
 ## 6. Reliability & Fault Tolerance
 | Механізм | Де реалізовано | Як перевірити |
@@ -101,7 +148,7 @@ docker compose start db   # через CB_OPEN_SECONDS (15 c) breaker half-open 
 для невідомого логіна та неправильного пароля), **авторизація** (`Auth::requireRole('admin')`, перевірка в `admin_stats.php`),
 **захист від IDOR** (user id — лише з токена), **валідація** (`Validator`, ліміт тіла 10 КБ, перевірка Content-Type,
 prepared statements з `EMULATE_PREPARES=false`), **security headers**, **CORS allowlist**, закритий прямий доступ до
-`src/`, `vendor/`, старих `api/*.php`; брутфорс-ліміт на логін.
+`src/`, `vendor/`; старі неверсійовані API handlers вилучено; брутфорс-ліміт на логін.
 Перевірка: `scripts/smoke.sh` (401 без токена, 403 для player на admin, 422 на `bet=-5`, CORS для чужого origin) + `AuthTest`, `ValidatorTest`.
 Для ручного тесту: `{"bet":"1; DROP TABLE users"}` → 422; підроблений токен → 401.
 
@@ -134,7 +181,7 @@ curl -s localhost:8000/api/v1/health
 
 ---
 
-# МОДУЛЬ 2
+# МОДУЛЬ 4. Контейнеризація, CI/CD, розгортання та супровід ПЗ
 
 ## 1–2. Dockerfile і docker-compose
 ```bash
@@ -163,10 +210,11 @@ docker push <user>/win-casino-frontend:1.0.0 && docker push <user>/win-casino-fr
 ```bash
 # на сервері
 curl -fsSL https://get.docker.com | sh
-git clone https://github.com/NAZIK110882/WIN-CASINO /opt/win-casino && cd /opt/win-casino
+git clone https://github.com/OWNER/REPOSITORY.git /opt/win-casino && cd /opt/win-casino
 cp .env.example .env && nano .env     # APP_ENV=production, свої паролі, JWT_SECRET, DOCKERHUB_USER,
                                       # APP_DOMAIN, API_DOMAIN, CACHE_DRIVER=redis, RATE_LIMIT_MAX=60
 docker compose -f docker-compose.prod.yml --env-file .env up -d
+docker compose -f docker-compose.prod.yml --env-file .env exec backend php scripts/migrate.php
 docker compose -f docker-compose.prod.yml exec backend php scripts/seed.php
 ```
 * **Frontend (п.5)**: окремий nginx-контейнер; `config.js` генерується зі змінної `API_BASE_URL=https://<API_DOMAIN>/api`.
@@ -174,33 +222,32 @@ docker compose -f docker-compose.prod.yml exec backend php scripts/seed.php
 * **Взаємодія (п.7)**: відкрийте `https://<APP_DOMAIN>/login.html` → логін → у DevTools → Network видно запити на `https://<API_DOMAIN>/api/v1/...`; `scripts/smoke.sh https://<API_DOMAIN>/api/v1`.
 * **CORS (п.8)**: `CORS_ALLOWED_ORIGINS=https://<APP_DOMAIN>` — лише цей origin отримує `Access-Control-Allow-Origin`; preflight `OPTIONS` → 204; чужий origin → без заголовка (smoke-тест це перевіряє). `*` не використовується.
 
-**Підключення старого фронтенду:** у `index.html`, `slots.html`, `bonanza.html`, `rocket.html` додайте перед своїми скриптами
-`<script src="config.js"></script><script src="casino-api.js"></script>` і замініть `fetch('api/spin.php', ...)` на
-`CasinoAPI.spin(bet)`, `fetch('api/user.php')` → `CasinoAPI.user()`, тощо. Без токена API поверне 401 і клієнт відправить на `login.html`.
+Frontend сторінки вже підключають `config.js` та `casino-api.js` і викликають versioned API. Без токена API-клієнт очищає сесію та перенаправляє на `login.html`.
 
 ## 9. CI/CD
-`.github/workflows/ci-cd.yml`: `test` (lint → init БД → PHPUnit+coverage → SonarCloud) → `e2e` (compose up → seed → smoke → Cypress)
-→ `publish` (Docker Hub, лише `main`) → `deploy` (SSH на сервер, `docker compose pull && up -d`, post-deploy smoke).
+`.github/workflows/ci-cd.yml`: `test` (lint → init БД → PHPUnit+coverage → optional SonarCloud) → `e2e` (Compose → seed → API smoke → Cypress)
+→ optional `publish` (Docker Hub, push у `main`) → optional `deploy` (SSH, compose pull/up, post-deploy smoke).
 
 Секрети (Settings → Secrets and variables → Actions): `SONAR_TOKEN`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`,
-`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `SMOKE_PLAYER_PASSWORD`; змінні (Variables): `APP_DOMAIN`, `API_DOMAIN`.
-Job `deploy` використовує environment `production` — можна ввімкнути ручне схвалення.
+`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `SMOKE_PLAYER_PASSWORD`; змінні (Variables): `APP_DOMAIN`, `API_DOMAIN`, `PUBLISH_DOCKER_IMAGES=true`, `DEPLOY_ENABLED=true`.
+Публікацію і deployment вмикайте лише після налаштування відповідних secrets, variables та production environment.
 **Звіт:** скриншот зеленого pipeline (Actions), посилання на запуск.
 
 ## 10. Continuous Testing
-Тести запускаються на кожен push і PR: unit (PHPUnit), інтеграційні, API smoke (`smoke.sh`), E2E (Cypress), статичний аналіз
-(Sonar Quality Gate), та post-deploy smoke на production. Покриття — `coverage/clover.xml` у Sonar і як artifact.
-Для Cypress: `cypress.json` → `"baseUrl": "http://localhost:8080"` і логін через `cy.request('POST', '/api/v1/login', ...)` + запис токена в `sessionStorage`.
+Unit та integration suites запускаються окремо і блокують наступні jobs у разі помилки. Cypress має три UI сценарії з підміненими API відповідями; конфігурація Cypress 10+ зберігається в `cypress.config.js`. API інтеграцію перевіряє `scripts/smoke.sh`. Coverage `coverage/clover.xml` завантажується як artifact.
 
 ---
 
 ## Шаблон структури звіту
-1. Мета і стек (PHP 8.3, MySQL 8.4, Redis, Docker, GitHub Actions)  2. Модуль 1: пункти 1–11 (було/стало, скриншоти, таблиці метрик)
-3. Модуль 2: пункти 1–10 (команди, скриншоти, посилання на Docker Hub / живий сайт / pipeline)  4. Висновки та обмеження.
+1. Мета і стек (PHP, MySQL, Redis, Docker, GitHub Actions).
+2. Модуль 1: README, схема БД, Kanban, Learn Git Branching, гілки/PR.
+3. Модуль 2: unit, exception, integration та E2E тести з командами й результатами.
+4. Модуль 3: Sonar до/після, рефакторинг, k6 benchmark/stress, профілювання, DB `EXPLAIN ANALYZE`, reliability та API security/versioning/rate limiting/cache/env.
+5. Модуль 4: Docker/Compose, запуск, CI/CD; за наявності — Container Registry і production deployment.
+6. Висновки, обмеження та джерела доказів.
 
-## Чесні обмеження цього набору
-* Старі `api/spin.php`, `bonanza.php`, `rocket_start.php` мені недоступні — ігрова логіка підключається через обгортки, а їх
-  внутрішній рефакторинг (транзакції, `random_int`, винесення класів) потрібно зробити за чеклістом з п. 2.
-* Fixed-window rate limiter допускає сплеск до 2× ліміту на межі вікон — для навчального проєкту прийнятно, у звіті варто згадати.
-* JWT без refresh/відкликання; роль у токені може бути застарілою до його завершення (TTL 1 год).
-* Код не запускався мною (немає PHP у моєму середовищі) — обов'язково прогоніть `php -l` та `phpunit`.
+## Обмеження та докази, яких ще немає в репозиторії
+* Fixed-window rate limiter допускає сплеск до 2× ліміту на межі вікон.
+* JWT не має refresh/revocation механізму; зміна ролі не анулює вже виданий токен до його завершення.
+* Crash-графік на клієнті є візуальною анімацією; сервер сам рахує множник і перевіряє виграш за часом раунду.
+* У репозиторії немає доказів успішного Sonar scan, відсотків coverage, результатів k6/profiling, опублікованих образів чи доступного production URL. Їх потрібно отримати та додати у звіт після запуску.
