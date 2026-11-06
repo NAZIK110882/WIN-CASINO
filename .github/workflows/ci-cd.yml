@@ -50,11 +50,11 @@ jobs:
         run: mysql -h 127.0.0.1 -uroot -proot casino_db < docker/mysql-init.sql
 
       - name: Unit tests + coverage
-        run: vendor/bin/phpunit --coverage-clover coverage/clover.xml
+        run: php vendor/bin/phpunit --coverage-clover coverage/clover.xml
 
       - name: Integration tests
         # якщо phpunit.integration.xml потребує інших параметрів БД — підлаштуйте env вище
-        run: vendor/bin/phpunit -c phpunit.integration.xml
+        run: php vendor/bin/phpunit -c phpunit.integration.xml
         continue-on-error: true
 
       - name: SonarCloud scan
