@@ -1,0 +1,11 @@
+# Профілювання (завдання 4):
+#   docker compose -f docker-compose.yml -f docker-compose.profile.yml up -d --build backend
+#   curl -H "Authorization: Bearer $T" "http://localhost:8000/api/v1/leaderboard?XDEBUG_TRIGGER=1"
+#   файли cachegrind.out.* з'являться у ./profiles -> відкрийте в QCachegrind / KCachegrind / webgrind
+services:
+  backend:
+    build:
+      context: .
+      target: profiling
+    volumes:
+      - ./profiles:/tmp/xdebug

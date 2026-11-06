@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вхід — Winner Casino</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#12121a; color:#eee; display:grid; place-items:center; min-height:100vh; margin:0; }
+    form { background:#1e1e2b; padding:2rem; border-radius:12px; width:min(320px,90vw); display:grid; gap:.8rem; }
+    input, button { padding:.7rem; border-radius:8px; border:0; font-size:1rem; }
+    button { background:#f5b301; font-weight:700; cursor:pointer; }
+    #msg { min-height:1.2em; color:#ff6b6b; font-size:.9rem; }
+  </style>
+</head>
+<body>
+  <form id="f">
+    <h1>Winner Casino</h1>
+    <input id="u" placeholder="Логін" autocomplete="username" required minlength="3" maxlength="50">
+    <input id="p" type="password" placeholder="Пароль" autocomplete="current-password" required minlength="8" maxlength="128">
+    <button type="submit">Увійти</button>
+    <div id="msg" role="alert"></div>
+  </form>
+  <script src="config.js"></script>
+  <script src="casino-api.js"></script>
+  <script>
+    document.getElementById('f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('msg');
+      msg.textContent = '';
+      try {
+        await CasinoAPI.login(document.getElementById('u').value, document.getElementById('p').value);
+        window.location.href = 'index.html';
+      } catch (err) {
+        msg.textContent = err.status === 429
+          ? `Забагато спроб. Повторіть через ${err.retryAfter || 60} с.`
+          : err.message;
+      }
+    });
+  </script>
+</body>
+</html>
