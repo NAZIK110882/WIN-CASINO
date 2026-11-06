@@ -1,0 +1,8 @@
+.env
+vendor/
+coverage/
+.phpunit.result.cache
+profiles/
+node_modules/
+cypress/videos/
+cypress/screenshots/
