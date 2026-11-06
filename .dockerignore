@@ -1,0 +1,14 @@
+.git
+.github
+.env
+vendor
+coverage
+node_modules
+cypress
+tests
+docs
+postman
+perf
+profiles
+*.md
+.phpunit.result.cache

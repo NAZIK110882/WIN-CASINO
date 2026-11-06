@@ -1,0 +1,10 @@
+# Автоматичний HTTPS (Let's Encrypt). DNS A-записи APP_DOMAIN і API_DOMAIN мають вказувати на сервер.
+{$APP_DOMAIN} {
+    encode gzip
+    reverse_proxy frontend:80
+}
+
+{$API_DOMAIN} {
+    encode gzip
+    reverse_proxy backend:80
+}
