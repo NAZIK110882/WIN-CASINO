@@ -6,7 +6,7 @@ services:
     region: frankfurt
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    dockerCommand: sh -c 'php scripts/migrate.php && php scripts/seed.php && exec apache2-foreground'
+    dockerCommand: /usr/local/bin/render-start
     healthCheckPath: /api/v1/health.php
     envVars:
       - key: APP_ENV

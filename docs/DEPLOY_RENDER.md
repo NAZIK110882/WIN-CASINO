@@ -9,7 +9,7 @@ This repository includes a Render Blueprint at `render.yaml`. It creates one fre
 3. Review the resources. Both the web service and database are set to the Free plan.
 4. When prompted for `SEED_PLAYER_PASSWORD` and `SEED_ADMIN_PASSWORD`, enter two passwords and save them somewhere safe. The player account is for the demo; the admin account is for the admin endpoints.
 5. Apply the Blueprint and wait for the web service health check to pass. Open the `win-casino` service URL.
-6. Log in as `player1` with `SEED_PLAYER_PASSWORD` to demonstrate games. The app runs migrations and seeds the accounts on startup.
+6. Log in as `player1` with `SEED_PLAYER_PASSWORD` to demonstrate games. The startup script runs migrations and seeds the accounts.
 
 If Render does not prompt for the two `sync: false` values during Blueprint creation, open the web service's **Environment** page, add both variables, and redeploy.
 

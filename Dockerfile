@@ -37,10 +37,13 @@ COPY --from=vendor /app/vendor ./vendor
 COPY api ./api
 COPY src ./src
 COPY scripts ./scripts
+COPY docker/render-start.sh /usr/local/bin/render-start
 COPY index.html login.html slots.html bonanza.html rocket.html casino-api.js config.js ./
 COPY docker/render-config.js ./config.js
 COPY *.jpg *.png *.mp3 *.mp4 ./
-RUN mkdir -p /var/cache/casino && chown -R www-data:www-data /var/cache/casino
+RUN chmod 755 /usr/local/bin/render-start \
+ && mkdir -p /var/cache/casino \
+ && chown -R www-data:www-data /var/cache/casino
 ENV CACHE_DIR=/var/cache/casino
 EXPOSE 80
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
